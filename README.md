@@ -1,12 +1,37 @@
-# KMP Algorithm Implementation
-    K.M.P Algorithm was very useful in sub string search context.
+# Git Plumbing Toolkit
+    Some Instructions or Scripts from Plumbing Angle for Better Understanding of Git Principles.
 
-## Basic KMP 
-    You May Know Well about the Next Array From Below Two Figures.
+## HashCode
+    git object was referenced by sha1 hashcode, how is this code generated and reprented.
 
+    every time you use git add, the file was hashed as a whole and was stored in .git/object/'hashcode'
+
+    git has three types of data structures, blob/commit/tree
+    take sample.c as example
+    ``` bash
+    $ cat sample.c | wc
+          5      12      77
+    namely 77 characters total. 
+    the blob data structure is just like "blob ${chars_total}\0${Contents}"
+    we suppose this sample.c will be stored as "blob 77\0${Contents}" to a object file.
+    echo -ne "blob 77\0" | cat - sample.c
+    blob 77#include <stdio.h>
+
+    int main(int argc, const char *argv[]) {
+            return 0;
+    }
+    echo -ne "blob 77\0" | cat - sample.c | shasum -a 1
+    bee80fe26e979b11a5ed10f4802c6aa9fbee3375  -
+
+    git add sample.c
+    find .git/objects/ -type f
+    .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375
+
+    and it was right there.
+
+    ```
 ![next1](http://img1.tuicool.com/2E36nuQ.png!web)
 
-![next2](http://img1.tuicool.com/qYN3u2v.png!web)
 
 ## Usage
 
