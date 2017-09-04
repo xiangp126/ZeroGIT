@@ -8,6 +8,7 @@
 
     git has three types of data structures, blob/commit/tree
     take sample.c as example
+
     ``` bash
     $ cat sample.c | wc
           5      12      77
@@ -30,6 +31,7 @@
     and it was right there.
 
     ```
+
 ![next1](http://img1.tuicool.com/2E36nuQ.png!web)
 
 
