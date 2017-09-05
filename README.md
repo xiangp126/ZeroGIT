@@ -15,14 +15,10 @@
 
     $ cat sample.c | wc
           5      12      77
-
-```
     namely 77 characters total. 
     the blob data structure is just like "blob ${chars_total}\0${Contents}"
     we suppose this sample.c will be stored as "blob 77\0${Contents}" to a object file.
 
-
-``` bash
     echo -ne "blob 77\0" | cat - sample.c
     blob 77#include <stdio.h>
 
@@ -35,10 +31,9 @@
     git add sample.c
     find .git/objects/ -type f
     .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375
+    and it was right there.
 
 ```
-
-    and it was right there.
 
 ![next1](http://img1.tuicool.com/2E36nuQ.png!web)
 
