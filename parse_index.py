@@ -27,6 +27,10 @@ def parseIndex(myfile):
         ''' 32-bit signature:
             The signature is { 'D', 'I', 'R', 'C' } (stands for "dircache")
         '''
+        printAppendix()
+        print("Index File ", end = "")
+        printAppendix()
+        print()
         byte = fRd.read(4)
         if byte != b"":
             str(byte, 'utf-8')
@@ -82,95 +86,101 @@ def parseIndex(myfile):
             val = int.from_bytes(byte, byteorder = "big")
             print("Device: %d" %val)
 
-        ''' 32-bit ino
+        ''' 32-bit inode
             this is stat(2) data. '''
-        byte = fRd.read(4)
-        if byte != b"":
-            val = int.from_bytes(byte, byteorder = "big")
-            print("Inode : %d" %val)
+        for loop in range(0, fileCount):
+            # beauty decorated
+            printAppendix()
+            print("File No. %d" %(loop + 1), end = ' ')
+            printAppendix()
+            print()
 
-        ''' 32-bit mode this is stat(2) data.
-            Included 4-bit object type
-            valid values in binary are 1000 (regular file), 1010 (symbolic link)
-            and 1110 (gitlink). '''
-        byte = fRd.read(2)
-        byte = fRd.read(2)
-        if byte != b"":
-            val = int.from_bytes(byte, byteorder = "big")
-            objType = (val >> 12) & 0b1111
-            unixPerm = val & 0b0000000111111111
+            byte = fRd.read(4)
+            if byte != b"":
+                val = int.from_bytes(byte, byteorder = "big")
+                print("Inode : %d" %val)
+    
+            ''' 32-bit mode this is stat(2) data.
+                Included 4-bit object type
+                valid values in binary are 1000 (regular file), 1010 (symbolic link)
+                and 1110 (gitlink). '''
+            byte = fRd.read(2)
+            byte = fRd.read(2)
+            if byte != b"":
+                val = int.from_bytes(byte, byteorder = "big")
+                objType = (val >> 12) & 0b1111
+                unixPerm = val & 0b0000000111111111
+    
+                checkObjType(objType)
+                print("Unix Permission: %d" %unixPerm)
+    
+            ''' 32-bit uid
+                this is stat(2) data. '''
+            byte = fRd.read(4)
+            if byte != b"":
+                val = int.from_bytes(byte, byteorder = "big")
+                print("UID: %d" %val)
+    
+            ''' 32-bit gid
+                this is stat(2) data. '''
+            byte = fRd.read(4)
+            if byte != b"":
+                val = int.from_bytes(byte, byteorder = "big")
+                print("GID: %d" %val)
+    
+            ''' 32-bit file size
+                This is the on-disk size from stat(2), truncated to 32-bit. '''
+            byte = fRd.read(4)
+            if byte != b"":
+                val = int.from_bytes(byte, byteorder = "big")
+                print("File Size: %d [Char]" %val)
+    
+            ''' 160-bit SHA-1 for the represented object. '''
+            byte = fRd.read(20)
+            if byte != b"":
+                val = int.from_bytes(byte, byteorder = "big")
+                print("SHA-1: %x" %val)
+    
+            ''' A 16-bit 'flags' field split into (high to low bits).
+            '''
+            byte = fRd.read(2)
+            if byte != b"":
+                val = int.from_bytes(byte, byteorder = 'big')
+                validFlag = val & 0b1000000000000000
+                extendedFlag = val & 0b0100000000000000
+                stage = val & 0b0011000000000000
+                length = val & 0b0000111111111111
+                print("Valid Flag: %d" %validFlag)
+                print("Extended Flag: %d" %extendedFlag)
+                print("Stage : %d" %stage)
+                print("Length: %d" %length)
+    
+            ''' file name (variable), ended with 0x0000. '''
+            byte = fRd.read(length)
+            if byte != b'':
+                print("File Name: %s" %byte.decode('ascii'))
+    
+            ''' 1-8 nul bytes as necessary to pad the entry to a multiple
+                of eight bytes while keeping the name NUL-terminated. '''
+            while 1:
+                byte = fRd.read(1)
+                val = int.from_bytes(byte, byteorder = "big")
+                if val == 0:
+                    continue
+                else:
+                    break
+    
+            ''' back one byte from current position. '''
+            fRd.seek(-1, 1)
+            byte = fRd.read(20)
+            if byte != b'':
+                val = int.from_bytes(byte, byteorder = "big")
+                print("Index SHA-1: %x" %val)
 
-            checkObjType(objType)
-            print("Unix Permission: %d" %unixPerm)
-
-        ''' 32-bit uid
-            this is stat(2) data. '''
-        byte = fRd.read(4)
-        if byte != b"":
-            val = int.from_bytes(byte, byteorder = "big")
-            print("UID: %d" %val)
-
-        ''' 32-bit gid
-            this is stat(2) data. '''
-        byte = fRd.read(4)
-        if byte != b"":
-            val = int.from_bytes(byte, byteorder = "big")
-            print("GID: %d" %val)
-
-        ''' 32-bit file size
-            This is the on-disk size from stat(2), truncated to 32-bit. '''
-        byte = fRd.read(4)
-        if byte != b"":
-            val = int.from_bytes(byte, byteorder = "big")
-            print("File Size: %d [Char]" %val)
-
-        ''' 160-bit SHA-1 for the represented object. '''
-        byte = fRd.read(20)
-        if byte != b"":
-            val = int.from_bytes(byte, byteorder = "big")
-            print("SHA-1: %x" %val)
-
-        ''' A 16-bit 'flags' field split into (high to low bits).
-        '''
-        byte = fRd.read(2)
-        byteCnt = 16 * 4 + 8 + 2
-        if byte != b"":
-            val = int.from_bytes(byte, byteorder = 'big')
-            validFlag = val & 0b1000000000000000
-            extendedFlag = val & 0b0100000000000000
-            stage = val & 0b0011000000000000
-            length = val & 0b0000111111111111
-            print("Valid Flag: %d" %validFlag)
-            print("Extended Flag: %d" %extendedFlag)
-            print("Stage : %d" %stage)
-            print("Length: %d" %length)
-
-        ''' file name (variable), ended with 0x0000. '''
-        byte = fRd.read(length)
-        byteCnt += length
-        print("byteCnt = %d" %byteCnt)
-        ''' 1-8 nul bytes as necessary to pad the entry to a multiple of eight bytes
-          while keeping the name NUL-terminated. '''
-        if byte != b'':
-            print("File Name: %s" %byte.decode('ascii'))
-
-        ''' skip file name appendix same as 0x0000. '''
-
-        while 1:
-            byte = fRd.read(1)
-            val = int.from_bytes(byte, byteorder = "big")
-            if val == 0:
-                continue
-            else:
-                break
-
-        ''' back one byte from current position. '''
-        fRd.seek(-1, 1)
-        byte = fRd.read(20)
-        if byte != b'':
-            val = int.from_bytes(byte, byteorder = "big")
-            print("Index SHA-1: %x" %val)
-
+        printAppendix()
+        print("End of Parse ", end = "")
+        printAppendix()
+        print()
         fRd.close()
 
 def checkObjType(type):
@@ -184,6 +194,8 @@ def checkObjType(type):
     else:
         print("Unknown Type")
 
+def printAppendix():
+    print("--------------------", end = ' ')
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
