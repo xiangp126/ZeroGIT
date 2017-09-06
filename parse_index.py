@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+import sys
 from datetime import datetime
 
 def parseIndex(myfile):
@@ -185,5 +186,9 @@ def checkObjType(type):
 
 
 if __name__ == "__main__":
-    parseIndex("/home/virl/penxiang/myGit/git_plumbing_toolkit/.git/index")
+    if len(sys.argv) == 1:
+        print("Usage: ./parse_index.py index_file")
+        exit(1)
+
+    parseIndex(sys.argv[1])
 
