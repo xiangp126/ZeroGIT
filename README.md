@@ -1,7 +1,7 @@
 # Git Plumbing Toolkit
     Some Instructions or Scripts from Plumbing Angle for Better Understanding of Git Principles.
 
-## Blob
+## Blob Object
     git object was referenced by sha1 hashcode, how is this code generated and reprented.
 
     every time you use git add, the file was hashed as a whole and was stored in .git/object/'hashcode'
@@ -51,26 +51,35 @@
 
 ```
 
+## Tree Object
+
+### Index Object
+    So much enhanced by this part, and you can use my self-writted script: 
+    after git add sample.c we see the .git/index
+
+    virl@virl:.git$ cat index
+    KY�����m�
+             �K����M���n�����,j���3sample.c�'m~�3 (���/�λvirl@virl:.git$
+
+    virl@virl:.git$ xxd index
+    0000000: 4449 5243 0000 0002 0000 0001 59ac c102  DIRC........Y...
+    0000010: 190d 104b 59ac c0fd 0fbc d36d 0000 fc00  ...KY......m....
+    0000020: 0ba2 024b 0000 81a4 0000 03e8 0000 03e8  ...K............
+    0000030: 0000 004d bee8 0fe2 6e97 9b11 a5ed 10f4  ...M....n.......
+    0000040: 802c 6aa9 fbee 3375 0008 7361 6d70 6c65  .,j...3u..sample
+    0000050: 2e63 0000 da27 6d06 7e90 3320 ceac 7f28  .c...'m.~.3 ...(
+    0000060: 88ac d72f e28b cebb                      .../....
+
 ## Usage
 
 ```bash    
     > make
-    g++ -Wall -g3 -std=c++11 -c kmp.cpp -o kmp.o
-    g++ -Wall -g3 -std=c++11 -c demo.cpp -o demo.o
-    g++ kmp.o demo.o -o demo
-
-    > ./demo 
-    Original Pattern: BCDABDE
-    Original String:  BBCABCDABABCDABCDABDET
-    Next Array:  -1  0  0  0  0  1  0
-     Optimized:  -1  0  0  0 -1  1  0
-
-     0123456789012345678901       [ index = 14 ]
-     BBCABCDABABCDABCDABDET
-                   BCDABDE
 
 ```    
 
 ## Reference 
 
 [Git Plumbing](http://git.oschina.net/progit/9-Git-%E5%86%85%E9%83%A8%E5%8E%9F%E7%90%86.html)
+[index-format](https://github.com/git/git/blob/master/Documentation/technical/index-format.txt)
+[What does the git index contain Exactly](https://stackoverflow.com/questions/4084921/what-does-the-git-index-contain-exactly/4086986#4086986)
+
