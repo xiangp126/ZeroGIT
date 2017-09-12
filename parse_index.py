@@ -172,38 +172,40 @@ def parseIndex(myfile):
     
             ''' back one byte from current position. '''
             fRd.seek(-1, 1)
-            if loop != fileCount - 1:
-                byte = fRd.read(20)
-                if byte != b'':
-                    val = int.from_bytes(byte, byteorder = "big")
-                    print("CheckSum: %x" %val)
-            else:
-                ''' - Extensions
-                     4-byte extension signature. If the first byte is 'A'..
-                     'Z' the extension is optional and can be ignored. 
-                '''
-                byte = fRd.read(4)
-                if byte != b'':
-                    str(byte, 'utf-8')
-                    print("Ext Sign: %s" %byte.decode('ascii'))
-
-                ''' 32-bit size of the extension. '''
-                byte = fRd.read(4)
-                if byte != b"":
-                    extSize = int.from_bytes(byte, byteorder = "big")
-                    print("Ext Size: %d" %extSize)
-
-                ''' Ext Data. End of Extension. '''
-                byte = fRd.read(extSize)
-                if byte != b'':
-                    val = int.from_bytes(byte, byteorder = "big")
-                    print("Ext Data: %x" %val)
+            if loop == fileCount - 1:
+                stepInto = 0
+                try:
+                    ''' - Extensions
+                         4-byte extension signature. If the first byte is 'A'..
+                         'Z' the extension is optional and can be ignored. 
+                    '''
+                    byte = fRd.read(4)
+                    stepInto += 4
+                    if byte != b'':
+                        str(byte, 'utf-8')
+                        print("Ext Sign: %s" %byte.decode('ascii'))
+    
+                    ''' 32-bit size of the extension. '''
+                    byte = fRd.read(4)
+                    stepInto += 4
+                    if byte != b"":
+                        extSize = int.from_bytes(byte, byteorder = "big")
+                        print("Ext Size: %d" %extSize)
+    
+                    ''' Ext Data. End of Extension. '''
+                    byte = fRd.read(extSize)
+                    stepInto += extSize
+                    if byte != b'':
+                        val = int.from_bytes(byte, byteorder = "big")
+                        print("Ext Data: %x" %val)
+                except ValueError:
+                    fRd.seek(-stepInto, 1)
                     
-                ''' 160 - bit CheckSum. '''
-                byte = fRd.read(20)
-                if byte != b'':
-                    val = int.from_bytes(byte, byteorder = "big")
-                    print("CheckSum: %x" %val)
+            ''' 160 - bit CheckSum. '''
+            byte = fRd.read(20)
+            if byte != b'':
+                val = int.from_bytes(byte, byteorder = "big")
+                print("CheckSum: %x" %val)
 
         printAppendix()
         print("End of Parse ", end = "")
