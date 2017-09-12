@@ -201,7 +201,7 @@ def parseIndex(myfile):
                 except ValueError:
                     fRd.seek(-stepInto, 1)
                     
-            ''' 160 - bit CheckSum. '''
+            ''' 160 - bit CheckSum, Common Section. '''
             byte = fRd.read(20)
             if byte != b'':
                 val = int.from_bytes(byte, byteorder = "big")
