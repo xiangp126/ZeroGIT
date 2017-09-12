@@ -53,6 +53,26 @@
 
 ## Tree Object
 
+## How to Parse Index
+
+          | 0           | 4            | 8           | C              |
+          |-------------|--------------|-------------|----------------|
+        0 | DIRC        | Version      | File count  | Ctime          | 0
+          | Nano-Sec    | Mtime        | Nano-Sec    | Device         |
+        2 | Inode       | Mode         | UID         | GID            | 2
+          | File size   | Entry SHA-1    ...           ...            |
+        4 | ...           ...          | Flags  | File Name(variant)  | 4
+          | Index SHA-1   ...           ...            ...            |
+        6 | ...                                                       |
+
+   --->>
+        2 | Mode - 32 bit     |      4 | Flags - 16 bit
+          |-------------------|        |-------------------------|
+          | 16-bit unknown    |        | 1-bit assume-valid flag |
+          | 4-bit object type |        | 1-bit extended flag     |
+          | 3-bit unused      |        | 2-bit stage             |
+          | 9-bit unix perm   |        | 12-bit name length      |
+
 ### Index Object
     So much enhanced by this part, and you can use my self-writted script: 
     after git add sample.c we see the .git/index
@@ -159,27 +179,6 @@
     commit
     
     # tree object is just like Directory in Linux OS
-
-## How to Parse Index
-### parse syntax
-
-          | 0           | 4            | 8           | C              |
-          |-------------|--------------|-------------|----------------|
-        0 | DIRC        | Version      | File count  | Ctime          | 0
-          | Nano-Sec    | Mtime        | Nano-Sec    | Device         |
-        2 | Inode       | Mode         | UID         | GID            | 2
-          | File size   | Entry SHA-1    ...           ...            |
-        4 | ...           ...          | Flags  | File Name(variant)  | 4
-          | Index SHA-1   ...           ...            ...            |
-        6 | ...                                                       |
-
-   --->>
-        2 | Mode - 32 bit     |      4 | Flags - 16 bit
-          |-------------------|        |-------------------------|
-          | 16-bit unknown    |        | 1-bit assume-valid flag |
-          | 4-bit object type |        | 1-bit extended flag     |
-          | 3-bit unused      |        | 2-bit stage             |
-          | 9-bit unix perm   |        | 12-bit name length      |
 
 ## Usage
 
