@@ -70,6 +70,7 @@
     0000050: 2e63 0000 da27 6d06 7e90 3320 ceac 7f28  .c...'m.~.3 ...(
     0000060: 88ac d72f e28b cebb                      .../....
 
+    Or vim -b index & :% !xxd
     > git add sample.c parse_index.py
     
     self-written script to parse this index file. Multiple files supported.
