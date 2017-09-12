@@ -65,6 +65,7 @@
           | Index SHA-1   ...           ...            ...            |
         6 | ...                                                       |
 
+
         2 | Mode - 32 bit     |      4 | Flags - 16 bit
           |-------------------|        |-------------------------|
           | 16-bit unknown    |        | 1-bit assume-valid flag |
@@ -182,6 +183,7 @@
 ## Usage
 
 ```bash    
+    Only python version 3 is supported.
     > python3 parse_index.py [index_file]
     > python3 parse_index.py .git/index
 
