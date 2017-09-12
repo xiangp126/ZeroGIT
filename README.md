@@ -79,7 +79,7 @@
 
     .git >  cat index
     KY�����m�
-             �K����M���n�����,j���3sample.c�'m~�3 (���/�λvirl@virl:.git$
+             �K����M���n�����,j���3sample.c�'m~�3 (���/�λ
 
     > xxd index
     0000000: 4449 5243 0000 0002 0000 0001 59ac c102  DIRC........Y...
