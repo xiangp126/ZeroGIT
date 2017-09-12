@@ -14,40 +14,40 @@
 * Part One 
 ``` bash
 
-    $ cat sample.c | wc
+    > cat sample.c | wc
           5      12      77
-    namely 77 characters total. 
-    the blob data structure is just like "blob ${chars_total}\0${Contents}"
-    we suppose this sample.c will be stored as "blob 77\0${Contents}" in a object file.
+    # namely 77 characters total. 
+    # the blob data structure is just like "blob ${chars_total}\0${Contents}"
+    # we suppose this sample.c will be stored as "blob 77\0${Contents}" 
+    # in a object file.
 
-    echo -ne "blob 77\0" | cat - sample.c
+    > echo -ne "blob 77\0" | cat - sample.c
     blob 77#include <stdio.h>
 
     int main(int argc, const char *argv[]) {
             return 0;
     }
-    echo -ne "blob 77\0" | cat - sample.c | shasum -a 1
+    > echo -ne "blob 77\0" | cat - sample.c | shasum -a 1
     bee80fe26e979b11a5ed10f4802c6aa9fbee3375  -
 
-    git add sample.c
-    find .git/objects/ -type f
+    > git add sample.c
+    > find .git/objects/ -type f
     .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375
-    and it was right there.
+    # and it was right there.
 
 ```
 * Part Two
 ```bash
-    contents stored in the object file was compressed by zlib. In linux we can use 
-    gunzip to decompress it.
+    # contents stored in the object file was compressed by zlib. In linux we can use 
+    # gunzip to decompress it.
     
-    printf "\x1f\x8b\x08\x00\x00\x00\x00\x00" | cat - .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375 | gzip -d 2>/dev/null
+    > printf "\x1f\x8b\x08\x00\x00\x00\x00\x00" | cat - .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375 | gzip -d 2>/dev/null
     blob 77#include <stdio.h>
 
     int main(int argc, const char *argv[]) {
             return 0;
     }
-
-    It was correct.
+    # It was correct.
 
 ```
 
@@ -74,14 +74,14 @@
           | 9-bit unix perm   |        | 12-bit name length      |
 
 ### Index Object
-    So much enhanced by this part, and you can use my self-writted script: 
-    after git add sample.c we see the .git/index
+    # So much enhanced by this part, and you can use my self-writted script: 
+    # after git add sample.c we see the .git/index
 
-    virl@virl:.git$ cat index
+    .git >  cat index
     KY�����m�
              �K����M���n�����,j���3sample.c�'m~�3 (���/�λvirl@virl:.git$
 
-    virl@virl:.git$ xxd index
+    > xxd index
     0000000: 4449 5243 0000 0002 0000 0001 59ac c102  DIRC........Y...
     0000010: 190d 104b 59ac c0fd 0fbc d36d 0000 fc00  ...KY......m....
     0000020: 0ba2 024b 0000 81a4 0000 03e8 0000 03e8  ...K............
@@ -93,7 +93,7 @@
     Or vim -b index & :% !xxd
     > git add sample.c parse_index.py
     
-    self-written script to parse this index file. Multiple files supported.
+    # self-written script to parse this index file. Multiple files supported.
     > ./parse_index.py .git/index
 
     -------------------- Index File --------------------
