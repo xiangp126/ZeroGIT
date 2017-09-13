@@ -193,11 +193,34 @@ def parseIndex(myfile):
                         print("Ext Size: %d" %extSize)
     
                     ''' Ext Data. End of Extension. '''
-                    byte = fRd.read(extSize)
-                    stepInto += extSize
-                    if byte != b'':
-                        val = int.from_bytes(byte, byteorder = "big")
-                        print("Ext Data: %x" %val)
+                    splitByte = 20
+                    loopTime = int(extSize / splitByte)
+                    residue = extSize % splitByte
+                    isFirstLoop = True
+
+                    print("Ext Data: ", end = "")
+                    while loopTime > 0 :
+                        byte = fRd.read(splitByte)
+                        stepInto += splitByte
+                        if byte != b'':
+                            val = int.from_bytes(byte, byteorder = "big")
+                            if isFirstLoop :
+                                print("%x" %val)
+                                isFirstLoop = False
+                            else :
+                                print("          %x" %val)
+                        loopTime = loopTime - 1
+
+                    if residue > 0 :
+                        byte = fRd.read(residue)
+                        if byte != b'':
+                            val = int.from_bytes(byte, byteorder = "big")
+                            if isFirstLoop :
+                                print("%x" %val)
+                                isFirstLoop = False
+                            else :
+                                print("          %x" %val)
+
                 except ValueError:
                     fRd.seek(-stepInto, 1)
                     
