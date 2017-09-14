@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-import sys
+import sys, binascii
 from datetime import datetime
 
 def parseIndex(myfile):
@@ -138,8 +138,9 @@ def parseIndex(myfile):
             ''' 160-bit SHA-1 for the represented object. '''
             byte = fRd.read(20)
             if byte != b"":
-                val = int.from_bytes(byte, byteorder = "big")
-                print("SHA-1: %x" %val)
+                # val = int.from_bytes(byte, byteorder = "big")
+                # print("SHA-1: %x" %val)
+                print("SHA-1: {}".format(binascii.hexlify(byte).decode('utf-8')))
     
             ''' A 16-bit 'flags' field split into (high to low bits).
             '''
@@ -196,8 +197,9 @@ def parseIndex(myfile):
                     byte = fRd.read(extSize)
                     stepInto += extSize
                     if byte != b'':
-                        val = int.from_bytes(byte, byteorder = "big")
-                        print("Ext Data: %x" %val)
+                        # val = int.from_bytes(byte, byteorder = "big")
+                        # print("Ext Data: %x" %val)
+                        print("SHA-1: {}".format(binascii.hexlify(byte).decode('utf-8')))
                 except ValueError:
                     fRd.seek(-stepInto, 1)
                     
