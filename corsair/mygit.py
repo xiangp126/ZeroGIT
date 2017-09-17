@@ -6,71 +6,126 @@ import getopt, hashlib, collections
 # ./.mygit, same as ./.git
 baseName = '.mygit'
 
-def writeIndex(entries):
-    ''' Write IndexEntry objects to mygit index file. '''
-    packedEntries = []
-    for entry in entries:
-        # >: big-endian, std. size & alignment
-        # L:unsigned long
-        # s:string (array of char)
-        # H:unsigned short
-        # these can be preceded by a decimal repeat count
-        # 20s, 20 char-length of string
-        # type(entryHead) = <class 'bytes'>
-        entryHead = struct.pack('>LLLLLLLLLL20sH', 
-                entry.ctime_s, entry.ctime_n, entry.mtime_s, entry.mtime_n,
-                entry.dev, entry.ino, entry.mode, entry.uid, entry.gid,
-                entry.size, entry.sha1, entry.flags)
-        # 'main.cpp' -> b'main.cpp'
-        path = entry.path.encode('utf-8')
-        ''' 1-8 nul bytes as necessary to pad the this entry to a multiple of 
-            eight bytes while keeping the name NUL-terminated. 
+# Data for one entry in the git index (.git/index)
+''' Parse Index File.
+      | 0           | 4            | 8           | C              |
+      |-------------|--------------|-------------|----------------|
+    0 | DIRC        | Version      | File count  | Ctime          | 0
+      | Nano-Sec    | Mtime        | Nano-Sec    | Device         |
+    2 | Inode       | Mode         | UID         | GID            | 2
+      | File size   | Entry SHA-1    ...           ...            |
+    4 | ...           ...          | Flags  | File Name(\0x00)    | 4
+      | Ext-Sig     | Ext-Size     | Ext-Data (Ext was optional)  | 
+    6 | Checksum      ...            ...           ...            | 6
+
+-->> 
+    2 | Mode - 32 bit     |      4 | Flags - 16 bit                
+      |-------------------|        |-------------------------|
+      | 16-bit unknown    |        | 1-bit assume-valid flag |
+      | 4-bit object type |        | 1-bit extended flag     |
+      | 3-bit unused      |        | 2-bit stage             |
+      | 9-bit unix perm   |        | 12-bit name length      |
+'''
+# IndexEntry = <class '__main__.IndexEntryType'>
+IndexEntry = collections.namedtuple('IndexEntryType', [
+    'ctime_s', 'ctime_n', 'mtime_s', 'mtime_n', 'dev', 'ino', 'mode', 'uid',
+    'gid', 'size', 'sha1', 'flags', 'path'])
+
+def readIndex():
+    ''' Read index file, return list of IndexEntry object. '''
+    try:
+         data = readFile(os.path.join(baseName, 'index'))
+    except FileNotFoundError:
+        return []
+
+    # calculate checksum leaving the last 20 bytes(checksum itself).
+    # data[0:20], left included, right not.
+    checkSum = hashlib.sha1(data[0:-20]).digest()
+    assert checkSum == data[-20:], "Error, Invalid Index CheckSum."
+    sigh, ver, fileCnt = struct.unpack('!4sLL', data[0:12])
+    assert sigh == b'DIRC', \
+            'Error, Invalid Index Signature {}'.format(sigh)
+    assert ver == 2, 'Error, Unknown Index Version {}'.format(ver)
+
+    # omit header and checksum part.
+    allEntryPart = data[12:-20]
+    entries = []
+    # per entry data length.
+    entryDataLen = 62
+
+    i = 0
+    while i + entryDataLen < len(allEntryPart):
+        # not included, as j in [i:j]
+        fieldEnd = i + entryDataLen
+        ''' fields = (1505637351, 0, 1505637351, 0, 16777220, 35245842, 
+                    33188, 502, 20, 83, 
+             b'\x0c\x02Q\xe0\x9eya\xf9\x92s\xa5\xa8\xe9S\xf6Q\xeb_=Y', 8)
         '''
-        # math.floor 70 / 8 = 8.75, 70 // 8 = 8 
-        # len(entryHead) = 62 = 10 * 4 + 20 + 2
-        entryHeadLen = len(entryHead)
-        pathLen = len(path)
-        # calculate how many b'\x00' will be appeded after file name.
-        trueLen = (math.floor((entryHeadLen + pathLen) / 8) + 1) * 8
-        packedEntry = entryHead + path + b'\x00' * (trueLen - entryHeadLen - pathLen)
-        packedEntries.append(packedEntry)
-    # | DIRC        | Version      | File count  | ...       | 
-    packHeader = struct.pack('>4sLL', b'DIRC', 2, len(entries))
-    # The result is returned as a new bytes object.
-    # Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.
-    # bytes + b''.join(list) => bytes
-    allData = packHeader + b''.join(packedEntries)
-    indexSha1 = hashlib.sha1(allData).digest()
-    allData += indexSha1
-    writeFile(os.path.join(baseName, 'index'), allData)
+        fields = struct.unpack('>LLLLLLLLLL20sH', allEntryPart[i:fieldEnd])
+        # parse path name, multiple b'\x00' terminatered.
+        pathLen = fields[-1]
+        entryLen = (((entryDataLen + pathLen) // 8) + 1) * 8
+        path = allEntryPart[fieldEnd:fieldEnd + pathLen]
+        # (path.decode('utf-8'),) convert str to tuple.
+        ''' fields + (path.decode('utf-8'),) = 
+                (1505637351, 0, 1505637351, 0, 16777220, 35245842, 33188, 
+                 502, 20, 83, 
+                 b'\x0c\x02Q\xe0\x9eya\xf9\x92s\xa5\xa8\xe9S\xf6Q\xeb_=Y', 
+                 8, 'main.cpp')
+        '''
+        ''' IndexEntry(*(fields + (path.decode(),))) = 
+            IndexEntry(ctime_s=1505637351, ctime_n=0, mtime_s=1505637351, 
+            mtime_n=0, dev=16777220, ino=35245842, mode=33188, uid=502,
+            gid=20, size=83, 
+            sha1=b'\x0c\x02Q\xe0\x9eya\xf9\x92s\xa5\xa8\xe9S\xf6Q\xeb_=Y',
+            flags=8, path='main.cpp')
+        '''
+        entry = IndexEntry(*(fields + (path.decode(),)))
+        entries.append(entry)
+        i += entryLen
+
+    assert len(entries) == fileCnt, "Error, File Count Not Match."
+    print(entries)
+    return entries
+
+def getStatus():
+    ''' Get status of working tree, return (changedPaths, newPaths, delPath)
+        as a tuple. '''
+    paths = set()
+    # root = '.', dirs = ['.mygit'], 
+    # files = ['main.cpp', 'mygit.py', 'parse_index.py', 'pygit.py']
+    for root, dirs, files in os.walk('.'):
+        # omit dir '/mygit'
+        dirs[:] = [d for d in dirs if d != baseName]
+        for file in files:
+            paths.add(file)
+    
+    readIndex()
+#            
+#
+#    paths = set()
+#    for root, dirs, files in os.walk('.'):
+#        dirs[:] = [d for d in dirs if d != '.git']
+#        for file in files:
+#            path = os.path.join(root, file)
+#            path = path.replace('\\', '/')
+#            if path.startswith('./'):
+#                path = path[2:]
+#            paths.add(path)
+#    entries_by_path = {e.path: e for e in read_index()}
+#    entry_paths = set(entries_by_path)
+#    changed = {p for p in (paths & entry_paths)
+#               if hash_object(read_file(p), 'blob', write=False) !=
+#                  entries_by_path[p].sha1.hex()}
+#    new = paths - entry_paths
+#    deleted = entry_paths - paths
+#    return (sorted(changed), sorted(new), sorted(deleted))
+
+def status():
+    getStatus()
 
 def add(paths):
     ''' Add files to 'stage', same as 'git add main.cpp'. '''
-    # Data for one entry in the git index (.git/index)
-    ''' Parse Index File.
-          | 0           | 4            | 8           | C              |
-          |-------------|--------------|-------------|----------------|
-        0 | DIRC        | Version      | File count  | Ctime          | 0
-          | Nano-Sec    | Mtime        | Nano-Sec    | Device         |
-        2 | Inode       | Mode         | UID         | GID            | 2
-          | File size   | Entry SHA-1    ...           ...            |
-        4 | ...           ...          | Flags  | File Name(\0x00)    | 4
-          | Ext-Sig     | Ext-Size     | Ext-Data (Ext was optional)  | 
-        6 | Checksum      ...            ...           ...            | 6
-
-   --->> 
-        2 | Mode - 32 bit     |      4 | Flags - 16 bit                
-          |-------------------|        |-------------------------|
-          | 16-bit unknown    |        | 1-bit assume-valid flag |
-          | 4-bit object type |        | 1-bit extended flag     |
-          | 3-bit unused      |        | 2-bit stage             |
-          | 9-bit unix perm   |        | 12-bit name length      |
-    '''
-    # IndexEntry = <class '__main__.IndexEntryType'>
-    IndexEntry = collections.namedtuple('IndexEntryType', [
-        'ctime_s', 'ctime_n', 'mtime_s', 'mtime_n', 'dev', 'ino', 'mode', 'uid',
-        'gid', 'size', 'sha1', 'flags', 'path'])
-
     entries = []
     # type(paths) = <class 'list'>
     for path in paths:
@@ -92,16 +147,43 @@ def add(paths):
         entries.append(entry)
         writeIndex(entries)
 
-def readFile(path):
-    ''' Read file as bytes at given path. '''
-    with open(path, "rb") as file:
-        return file.read()
-
-def writeFile(path, data):
-    ''' write bytes to file at given path. '''
-    # type(data) = <class 'bytes'>
-    with open(path, "wb") as file:
-        file.write(data)
+def writeIndex(entries):
+    ''' Write IndexEntry objects to mygit index file. '''
+    packedEntries = []
+    for entry in entries:
+        # >: big-endian, std. size & alignment
+        # L:unsigned long
+        # s:string (array of char)
+        # H:unsigned short
+        # these can be preceded by a decimal repeat count
+        # 20s, 20 char-length of string
+        # type(entryHead) = <class 'bytes'>
+        entryData = struct.pack('>LLLLLLLLLL20sH', 
+                entry.ctime_s, entry.ctime_n, entry.mtime_s, entry.mtime_n,
+                entry.dev, entry.ino, entry.mode, entry.uid, entry.gid,
+                entry.size, entry.sha1, entry.flags)
+        # 'main.cpp' -> b'main.cpp'
+        path = entry.path.encode('utf-8')
+        ''' 1-8 nul bytes as necessary to pad the this entry to a multiple of 
+            eight bytes while keeping the name NUL-terminated. 
+        '''
+        # math.floor 70 / 8 = 8.75, 70 // 8 = 8 
+        # len(entryData) = 62 = 10 * 4 + 20 + 2
+        entryDataLen = len(entryData)
+        pathLen = len(path)
+        # calculate how many b'\x00' will be appeded after file name.
+        trueLen = (math.floor((entryDataLen + pathLen) / 8) + 1) * 8
+        packedEntry = entryData + path + b'\x00' * (trueLen - entryDataLen - pathLen)
+        packedEntries.append(packedEntry)
+    # | DIRC        | Version      | File count  | ...       | 
+    packHeader = struct.pack('>4sLL', b'DIRC', 2, len(entries))
+    # The result is returned as a new bytes object.
+    # Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.
+    # bytes + b''.join(list) => bytes
+    allData = packHeader + b''.join(packedEntries)
+    indexSha1 = hashlib.sha1(allData).digest()
+    allData += indexSha1
+    writeFile(os.path.join(baseName, 'index'), allData)
 
 def hashObject(fName, objType = 'blob', write = False):
     ''' Compute sha1 hashcode of specified file and write data to object
@@ -128,6 +210,17 @@ def hashObject(fName, objType = 'blob', write = False):
         writeFile(path, zlibData)
 
     return sha1
+
+def readFile(path):
+    ''' Read file as bytes at given path. '''
+    with open(path, "rb") as file:
+        return file.read()
+
+def writeFile(path, data):
+    ''' write bytes to file at given path. '''
+    # type(data) = <class 'bytes'>
+    with open(path, "wb") as file:
+        file.write(data)
 
 def init():
     ''' Init .mygit associated files. '''

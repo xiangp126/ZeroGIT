@@ -130,7 +130,7 @@ def cat_file(mode, sha1_prefix):
 def read_index():
     """Read git index file and return list of IndexEntry objects."""
     try:
-        data = read_file(os.path.join('.git', 'index'))
+        data = read_file(os.path.join('.mygit', 'index'))
     except FileNotFoundError:
         return []
     digest = hashlib.sha1(data[:-20]).digest()
