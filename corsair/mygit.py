@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import sys, os, zlib, struct
+import sys, os, zlib, struct, math
 import getopt, hashlib, collections
 
 # ./.mygit, same as ./.git
@@ -21,31 +21,28 @@ def writeIndex(entries):
                 entry.ctime_s, entry.ctime_n, entry.mtime_s, entry.mtime_n,
                 entry.dev, entry.ino, entry.mode, entry.uid, entry.gid,
                 entry.size, entry.sha1, entry.flags)
-
-        # math.floor  //
-
-
-
-    # | DIRC        | Version      | File count  | Ctime          | 
+        # 'main.cpp' -> b'main.cpp'
+        path = entry.path.encode('utf-8')
+        ''' 1-8 nul bytes as necessary to pad the this entry to a multiple of 
+            eight bytes while keeping the name NUL-terminated. 
+        '''
+        # math.floor 70 / 8 = 8.75, 70 // 8 = 8 
+        # len(entryHead) = 62 = 10 * 4 + 20 + 2
+        entryHeadLen = len(entryHead)
+        pathLen = len(path)
+        # calculate how many b'\x00' will be appeded after file name.
+        trueLen = (math.floor(entryHeadLen + pathLen) + 1) * 8
+        packedEntry = entryHead + path + b'\x00' * (trueLen - entryHeadLen - pathLen)
+        packedEntries.append(packedEntry)
+    # | DIRC        | Version      | File count  | ...       | 
     packHeader = struct.pack('>4sLL', b'DIRC', 2, len(entries))
-    # determin how many b'\x00' will be appeded after file name.
-    allData = packHeader + b''
-
-    """Write list of IndexEntry objects to git index file."""
-    packed_entries = []
-    for entry in entries:
-        entry_head = struct.pack('!LLLLLLLLLL20sH',
-                entry.ctime_s, entry.ctime_n, entry.mtime_s, entry.mtime_n,
-                entry.dev, entry.ino, entry.mode, entry.uid, entry.gid,
-                entry.size, entry.sha1, entry.flags)
-        path = entry.path.encode()
-        length = ((62 + len(path) + 8) // 8) * 8
-        packed_entry = entry_head + path + b'\x00' * (length - 62 - len(path))
-        packed_entries.append(packed_entry)
-    header = struct.pack('!4sLL', b'DIRC', 2, len(entries))
-    all_data = header + b''.join(packed_entries)
-    digest = hashlib.sha1(all_data).digest()
-    write_file(os.path.join('.git', 'index'), all_data + digest)
+    # The result is returned as a new bytes object.
+    # Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.
+    # bytes + b''.join(list) => bytes
+    allData = packHeader + b''.join(packedEntries)
+    indexSha1 = hashlib.sha1(allData).digest()
+    allData += indexSha1
+    writeFile(os.path.join(baseName, 'index'), allData)
 
 def add(paths):
     ''' Add files to 'stage', same as 'git add main.cpp'. '''
@@ -94,7 +91,6 @@ def add(paths):
                 flags, path)
         entries.append(entry)
         writeIndex(entries)
-        print(entries)
 
 def readFile(path):
     ''' Read file as bytes at given path. '''
@@ -176,6 +172,5 @@ if __name__ == '__main__':
         sha1 = hashObject(argv[1], "blob", True)
         print(sha1)
     elif command == 'add':
-        print(argv[1:])
         add(argv[1:])
 
