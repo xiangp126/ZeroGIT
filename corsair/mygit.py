@@ -31,7 +31,7 @@ def writeIndex(entries):
         entryHeadLen = len(entryHead)
         pathLen = len(path)
         # calculate how many b'\x00' will be appeded after file name.
-        trueLen = (math.floor(entryHeadLen + pathLen) + 1) * 8
+        trueLen = (math.floor((entryHeadLen + pathLen) / 8) + 1) * 8
         packedEntry = entryHead + path + b'\x00' * (trueLen - entryHeadLen - pathLen)
         packedEntries.append(packedEntry)
     # | DIRC        | Version      | File count  | ...       | 
