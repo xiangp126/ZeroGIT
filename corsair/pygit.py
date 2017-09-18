@@ -7,7 +7,7 @@ Released under a permissive MIT license (see LICENSE.txt).
 """
 
 import argparse, collections, difflib, enum, hashlib, operator, os, stat
-import struct, sys, time, urllib.request, zlib
+import struct, sys, time, urllib.request, zlib, binascii
 
 
 # Data for one entry in the git index (.git/index)
@@ -185,7 +185,7 @@ def get_status():
     entry_paths = set(entries_by_path)
     changed = {p for p in (paths & entry_paths)
                if hash_object(read_file(p), 'blob', write=False) !=
-                  entries_by_path[p].sha1.hex()}
+                 binascii.hexlify(entries_by_path[p].sha1).decode('utf-8')}
     new = paths - entry_paths
     deleted = entry_paths - paths
     return (sorted(changed), sorted(new), sorted(deleted))

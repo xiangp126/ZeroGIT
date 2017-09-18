@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import sys, os, zlib, struct, math, argparse
-import getopt, hashlib, collections
+import getopt, hashlib, collections, binascii
 
 # ./.mygit, same as ./.git
 baseName = '.mygit'
@@ -85,44 +85,70 @@ def readIndex():
         i += entryLen
 
     assert len(entries) == fileCnt, "Error, File Count Not Match."
-    print(entries)
     return entries
 
 def getStatus():
     ''' Get status of working tree, return (changedPaths, newPaths, delPath)
         as a tuple. '''
     paths = set()
-    # root = '.', dirs = ['.mygit'], 
-    # files = ['main.cpp', 'mygit.py', 'parse_index.py', 'pygit.py']
+    ''' > for root, dirs, files in os.walk('.'):
+          ...  dirs[:] = [d for d in dirs if d != '.mygit']
+          ...  print("root = ", root, ", dirs = ", dirs, ", files = ", files)
+          ...
+          root =  . , dirs =  ['deer', 'lala'] , files =  ['pygit.py', 
+                                    'main.cpp', 'parse_index.py', 'mygit.py']
+          root =  ./deer , dirs =  [] , files =  ['data.txt', 'raw.txt']
+          root =  ./lala , dirs =  [] , files =  []
+    '''
     for root, dirs, files in os.walk('.'):
-        # omit dir '/mygit'
+        # omit dir '.mygit'
         dirs[:] = [d for d in dirs if d != baseName]
         for file in files:
-            paths.add(file)
+            path = os.path.join(root, file)
+            if path.startswith('./'):
+                path = path[2:]
+            paths.add(path)
+    ''' entries_by_path = {e.path: e for e in read_index()} = 
+        {'parse_index.py': IndexEntry(..., ..., path='parse_index.py'), 
+        'main.cpp': IndexEntry(..., ..., path='main.cpp')}
+    '''
+    # type(entries_by_path) = <class 'dict'>, convert to Key -> Value.
+    entriesByPath = {entry.path: entry for entry in readIndex()}
+    # entryPaths = {'parse_index.py', 'main.cpp'}
+    entryPaths = set(entriesByPath)
     
-    readIndex()
-#            
-#
-#    paths = set()
-#    for root, dirs, files in os.walk('.'):
-#        dirs[:] = [d for d in dirs if d != '.git']
-#        for file in files:
-#            path = os.path.join(root, file)
-#            path = path.replace('\\', '/')
-#            if path.startswith('./'):
-#                path = path[2:]
-#            paths.add(path)
-#    entries_by_path = {e.path: e for e in read_index()}
-#    entry_paths = set(entries_by_path)
-#    changed = {p for p in (paths & entry_paths)
-#               if hash_object(read_file(p), 'blob', write=False) !=
-#                  entries_by_path[p].sha1.hex()}
-#    new = paths - entry_paths
-#    deleted = entry_paths - paths
-#    return (sorted(changed), sorted(new), sorted(deleted))
+    changedFiles = set()
+    # check if SHA1 of the file has changed.
+    # binascii.hexlify(entries_by_path['main.cpp'].sha1).decode('utf-8') =
+    # '0c0251e09e7961f99273a5a8e953f651eb5f3d59'
+    for path in (paths & entryPaths):
+        sha1 = hashObject(path, 'blob', write = False)
+        oriSHA1 = \
+            binascii.hexlify(entriesByPath[path].sha1).decode('utf-8')
+        if sha1 != oriSHA1:
+            changedFiles.add(path)
+    # only two set() can minus each other.
+    newFiles = paths - entryPaths
+    deletedFiles = entryPaths - paths
+    #print(changedFiles, newFiles, deletedFiles)
+      
+    return (sorted(changedFiles), sorted(newFiles), sorted(deletedFiles))
 
 def status():
-    getStatus()
+    ''' The upper function of getStatus(). In case the latter is too large. '''
+    changed, new, deleted = getStatus()
+    if changed:
+        print('changed files:')
+        for path in changed:
+            print('   ', path)
+    if new:
+        print('new files:')
+        for path in new:
+            print('   ', path)
+    if deleted:
+        print('deleted files:')
+        for path in deleted:
+            print('   ', path)
 
 def add(paths):
     ''' Add files to 'stage', same as 'git add main.cpp'. '''
@@ -222,7 +248,7 @@ def writeFile(path, data):
     with open(path, "wb") as file:
         file.write(data)
 
-def init():
+def init(repo):
     ''' Init .mygit associated files. '''
     global baseName
     # if base dir not exists, just create it.
@@ -288,8 +314,8 @@ if __name__ == '__main__':
 
     sub_parser = sub_parsers.add_parser('init',
             help='initialize a new repo')
-    sub_parser.add_argument('repo',
-            help='directory name for new repo')
+#    sub_parser.add_argument('repo',
+#            help='directory name for new repo')
 
     sub_parser = sub_parsers.add_parser('ls-files',
             help='list files in index')
@@ -328,7 +354,7 @@ if __name__ == '__main__':
         sha1 = hashObject(args.path, args.type, write=args.write)
         print(sha1)
     elif args.command == 'init':
-        init(args.repo)
+        init('.')
     elif args.command == 'ls-files':
         ls_files(details=args.stage)
     elif args.command == 'push':
