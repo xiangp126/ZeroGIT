@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import sys, os, zlib, struct, math, argparse
+import sys, os, zlib, struct, math, argparse, time
 import getopt, hashlib, collections, binascii
 
 # ./.mygit, same as ./.git
@@ -30,6 +30,148 @@ baseName = '.mygit'
 IndexEntry = collections.namedtuple('IndexEntryType', [
     'ctime_s', 'ctime_n', 'mtime_s', 'mtime_n', 'dev', 'ino', 'mode', 'uid',
     'gid', 'size', 'sha1', 'flags', 'path'])
+
+def findObject(hashCode):
+    """ Find object with given SHA-1 prefix and return path to object. Or 
+        exit if there are no one or more than one object with this prefix.
+    """
+    if len(hashCode) < 7:
+        print("Hash Prefix Must Longer than 7 Characters.")
+        sys.exit(1)
+    objDir = os.path.join(baseName, 'objects', hashCode[:2])
+    restHashCode = hashCode[2:]
+    objs = [name for name in os.listdir(objDir) if name.startswith(restHashCode)]
+    if not objs:
+        # "Object '0fe2738082e4f75c9c6bf154af70c12d9b55af' Not Found."
+        print("Object {!r} Not Found.".format(hashCode))
+        sys.exit(1)
+    if len(objs) > 2:
+        print("There Are [{}] Objects with HashCode {!r}.".format( len(objs), hashCode))
+    # .git/objects/48/0fe2738082e4f75c9c6bf154af70c12d9b55af
+    return os.path.join(objDir, objs[0])
+
+def readObject(hashCode):
+    ''' Read object with given SHA1 hashcode.
+        return: tuple of (type, data), or ValueError if not found.
+    '''
+    path = findObject(hashCode)
+    # Notice, Zlib Decompress first.
+    fullData = zlib.decompress(readFile(path))
+    # find the first occurance of b'\x00', take index as 8
+    nullIndex = fullData.index(b'\x00')
+    # [ ), right not included.
+    header = fullData[0:nullIndex]
+    # header = b'tree 114'
+    # b'tree 114'.decode().split() = ['tree', '114']
+    type, sizeStr = header.decode('utf-8').split()
+    size = int(sizeStr)
+    data = fullData[nullIndex + 1:]
+    assert size == len(data), "Expect size {}, But Got {} bytes.".\
+                            format(size, len(data))
+    return (type, data)
+
+def readTree(hashCode = None, data = None):
+    ''' Read Tree object and return list of (mode, path, sha1) tuples. '''
+    if hashCode is not None:
+        objType, data = readObject(hashCode)
+        assert objType == 'true'
+    elif data is None:
+        print("You Should Specify 'sha1' or 'data'")
+    # data =  b'100664 main.cpp\x00\xd8\xc1\xa2&i{:\x12\xf9%\x85\x03\x13
+    # \xe3{\x91\xe6"\xe4\xce100775 parse_index.py\x00\xd6\x8e\x19\x16S
+    # \xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775 pygit.py
+    # \x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
+    print("data = ", data)
+    entries = []
+
+
+def catFile(mode, hashCode):
+    ''' Upper function of cat-file call. '''
+    objType, data = readObject(hashCode)
+
+    if objType in ['blob', 'commit']:
+        sys.stdout.buffer.write(data)
+    elif objType == 'tree':
+        readTree(data = data)
+
+
+
+
+def getLocalMasterHash():
+    ''' Get SHA-1 of the latest commit of local master branch. '''
+    # '.mygit/refs/heads/master'
+    masterPath = os.path.join(baseName, 'refs', 'heads', 'master')
+    try:
+        return readFile(masterPath).decode('utf-8').strip()
+    except FileNotFoundError:
+        return None
+
+def writeTree():
+    ''' Write a tree object from the current index file. '''
+    treeEntries = []
+    for entry in readIndex():
+        # entry.mode = 33277, {:o} o => octal
+        # '{:o} {}'.format(entry.mode, entry.path) => '100775 pygit.py'
+        modePath = '{:o} {}'.format(entry.mode, entry.path).encode('utf-8')
+        treeEntry = modePath + b'\x00' + entry.sha1
+        treeEntries.append(treeEntry)
+    print("treeEntries = ", treeEntries)
+    # Example: b'.'.join([b'ab', b'pq', b'rs']) -> b'ab.pq.rs'.
+    return(hashObject(b''.join(treeEntries), 'tree', True))
+
+def commit(message):
+    ''' Commit, using the index file and given message,
+        return: sha1 of commit object. '''
+    treeHash = writeTree()
+    parent = getLocalMasterHash()
+    # 'corsair <xiangp126@sjtu.edu.cn>'
+    author = '{} <{}>'.format(
+        os.environ['GIT_AUTHOR_NAME'], os.environ['GIT_AUTHOR_EMAIL'])
+
+    # format author time.
+    timeStamp = int(time.mktime(time.localtime()))
+    authorTime = '1505732862 -0500'
+
+    # standard git commit, The first commit, has no parent.
+    ''' > git cat-file -p 13bf599 
+        tree 25e4ad73b4a7b7fd156f665a11769b98b434d1dc
+        author corsair <xiangp126@126.com> 1505724533 -0400
+        committer corsair <xiangp126@126.com> 1505724533 -0400
+
+        Init commit
+    '''
+    # standard git commit, has parent commit.
+    ''' > git cat-file -p df34f29
+        tree 19b5340d1316fc3f19b4d87f558ad2bd082d80fd
+        parent 13bf599a061991f4a0c1bfd6086ea6d48e5e232b
+        author corsair <xiangp126@126.com> 1505725603 -0400
+        committer corsair <xiangp126@126.com> 1505725603 -0400
+
+        second commit
+    '''
+    # format commit info.
+    commitInfo = ['tree ' + treeHash]
+    # if has parent commit
+    if parent:
+        commitInfo.append('parent ' + parent)
+    commitInfo.append('author {} {}'.format(author, authorTime))
+    commitInfo.append('committer {} {}'.format(author, authorTime))
+    commitInfo.append('')
+    commitInfo.append(message)
+    commitInfo.append('')
+    ''' S.join(iterable) -> str
+        Return a string which is the concatenation of the strings in the
+            iterable.  The separator between elements is S.
+        S => '\n', in this example.
+    '''
+
+    data = '\n'.join(commitInfo).encode('utf-8')
+    sha1 = hashObject(data, 'commit', True)
+    masterPath = os.path.join(baseName, 'refs', 'heads', 'master')
+    writeFile(masterPath, (sha1 + '\n').encode('utf-8'))
+    # [master df34f29] second commit
+    print("[master {}] {}".format(sha1, message))
+    return sha1
 
 def readIndex():
     ''' Read index file, return list of IndexEntry object. '''
@@ -122,7 +264,7 @@ def getStatus():
     # binascii.hexlify(entries_by_path['main.cpp'].sha1).decode('utf-8') =
     # '0c0251e09e7961f99273a5a8e953f651eb5f3d59'
     for path in (paths & entryPaths):
-        sha1 = hashObject(path, 'blob', write = False)
+        sha1 = hashObject(readFile(path), 'blob', write = False)
         oriSHA1 = \
             binascii.hexlify(entriesByPath[path].sha1).decode('utf-8')
         if sha1 != oriSHA1:
@@ -155,7 +297,7 @@ def add(paths):
     entries = []
     # type(paths) = <class 'list'>
     for path in paths:
-        sha1 = hashObject(path, 'blob')
+        sha1 = hashObject(readFile(path), 'blob', False)
         ''' os.stat(path) = os.stat_result(st_mode=33204, st_ino=195100843, 
             st_dev=64512, st_nlink=1, st_uid=1000, st_gid=1000, st_size=82,
             st_atime=1505454057, st_mtime=1505453832, st_ctime=1505453832). 
@@ -211,13 +353,11 @@ def writeIndex(entries):
     allData += indexSha1
     writeFile(os.path.join(baseName, 'index'), allData)
 
-def hashObject(fName, objType = 'blob', write = False):
+def hashObject(data, objType = 'blob', write = False):
     ''' Compute sha1 hashcode of specified file and write data to object
         directory if needed.  '''
     ''' The sample form stored in object file: 
                        '${objType} ${len_of_char}' + '\0' + ${true_content}. '''
-    fRd = open(fName, "rb")
-    data = fRd.read()
     # Unicode-objects must be encoded before hashing
     # type(header) = <class 'bytes'>
     header = "{} {}".format(objType, len(data)).encode('utf-8')
@@ -227,14 +367,13 @@ def hashObject(fName, objType = 'blob', write = False):
 
     if write:
         # .git/objects/0c/0251e09e7961f99273a5a8e953f651eb5f3d59
-        path = os.path.join('.git', 'objects', sha1[:2], sha1[2:])
+        path = os.path.join(baseName, 'objects', sha1[:2], sha1[2:])
         dirName = os.path.dirname(path)
         if not os.path.exists(path):
             os.makedirs(dirName, exist_ok = True)
         # zlib compress the data to be stored.
         zlibData = zlib.compress(fullData)
         writeFile(path, zlibData)
-
     return sha1
 
 def readFile(path):
@@ -342,16 +481,16 @@ if __name__ == '__main__':
         add(args.paths)
     elif args.command == 'cat-file':
         try:
-            cat_file(args.mode, args.hash_prefix)
+            catFile(args.mode, args.hash_prefix)
         except ValueError as error:
             print(error, file=sys.stderr)
             sys.exit(1)
     elif args.command == 'commit':
-        commit(args.message, author=args.author)
+        commit(args.message)
     elif args.command == 'diff':
         diff()
     elif args.command == 'hash-object':
-        sha1 = hashObject(args.path, args.type, write=args.write)
+        sha1 = hashObject(readFile(args.path), args.type, write=args.write)
         print(sha1)
     elif args.command == 'init':
         init('.')
@@ -387,7 +526,7 @@ if __name__ == '__main__':
 #        for prefix, type in options:
 #            if prefix in ("-t", "--type"):
 #                print('type is----', value)
-#                sha1 = hashObject(argv[1], type, True)
+#                sha1 = hashObject(readFile(argv[1]), type, True)
 #                print(sha1)
 #            else:
 #                print("Syntax Error.")
