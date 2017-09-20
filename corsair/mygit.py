@@ -125,7 +125,7 @@ def catFile(mode, hashCode):
     if mode == 'raw':
         objType, data = readObject(hashCode, True)
     else:
-        objType, data = readObject(hashCode, )
+        objType, data = readObject(hashCode)
 
     if mode == 'size':
         print(len(data))
