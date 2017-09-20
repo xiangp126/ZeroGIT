@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import sys, os, zlib, struct, math, argparse, time
-import getopt, hashlib, collections, binascii, stat
+import getopt, hashlib, collections, binascii, stat, difflib
 
 # ./.mygit, same as ./.git
 baseName = '.git'
@@ -30,6 +30,44 @@ baseName = '.git'
 IndexEntry = collections.namedtuple('IndexEntryType', [
     'ctime_s', 'ctime_n', 'mtime_s', 'mtime_n', 'dev', 'ino', 'mode', 'uid',
     'gid', 'size', 'sha1', 'flags', 'path'])
+
+def diff():
+    ''' Show diff between index and working tree. '''
+    ''' entries_by_path = {e.path: e for e in read_index()} = 
+        {'parse_index.py': IndexEntry(..., ..., path='parse_index.py'), 
+        'main.cpp': IndexEntry(..., ..., path='main.cpp')}
+    '''
+    # type(entries_by_path) = <class 'dict'>, convert to Key -> Value.
+    entriesByPath = {entry.path: entry for entry in readIndex()}
+    ''' for path in enumerate(changed):
+            ...  print(path)
+                 ...
+                 (0, 'pygit.py')
+                 (1, 'mygit.py')
+    '''
+    changed, _, _ = getStatus()
+    for _, path in enumerate(changed):
+        sha1 = binascii.hexlify(entriesByPath[path].sha1).decode('utf-8')
+        objType, data = readObject(sha1)
+        assert objType == 'blob', "Only Support blob type."
+        indexLines = data.decode('utf-8').splitlines()
+        workingLines = readFile(path).decode('utf-8').splitlines()
+
+        ''' unified_diff(a, b, fromfile='', tofile='', fromfiledate='', 
+            tofiledate='', n=3, lineterm='\n')
+            Compare two sequences of lines; 
+            generate the delta as a unified diff.
+        '''
+        # For inputs that do not have trailing newlines, set the lineterm
+        # argument to "" so that the output will be uniformly newline free
+        diffLines = difflib.unified_diff(
+                    indexLines, workingLines,
+                    '{} (index)'.format(path),
+                    '{} (working tree)'.format(path),
+                    lineterm = '')
+                    
+        for line in diffLines:
+            print(line)
 
 def findObject(hashCode):
     """ Find object with given SHA-1 prefix and return path to object. Or 
@@ -355,7 +393,7 @@ def add(paths):
     entries = []
     # type(paths) = <class 'list'>
     for path in paths:
-        sha1 = hashObject(readFile(path), 'blob', False)
+        sha1 = hashObject(readFile(path), 'blob', True)
         ''' os.stat(path) = os.stat_result(st_mode=33204, st_ino=195100843, 
             st_dev=64512, st_nlink=1, st_uid=1000, st_gid=1000, st_size=82,
             st_atime=1505454057, st_mtime=1505453832, st_ctime=1505453832). 
@@ -538,7 +576,7 @@ if __name__ == '__main__':
 
     # git status
     subParser = subParsers.add_parser('status',
-            help='show status of working copy')
+                                        help='show status of working copy')
 
     args = parser.parse_args()
     if args.command == 'add':
@@ -574,34 +612,3 @@ if __name__ == '__main__':
     else:
         assert False, 'unexpected command {!r}'.format(args.command)
 
-#    try:
-#        options, argv = getopt.getopt(sys.argv[1:], "h:t")
-#        print("options = ", options)
-#        print("argv = ", argv)
-#    except getopt.GetoptError:
-#        print("Usage Error. Exit Now.")
-#        sys.exit()
-#    for name, value in options:
-#        if name in ("-h", "--help"):
-#            usage()
-#        if name in ("-t", "--type"):
-#            print('type is----', value)
-#    
-#    command = argv[0]
-#    if command == 'init':
-#        init()        
-#    elif command == 'status':
-#        print(command)
-#        # status()
-#    elif command == 'hash-object':
-#        for prefix, type in options:
-#            if prefix in ("-t", "--type"):
-#                print('type is----', value)
-#                sha1 = hashObject(readFile(argv[1]), type, True)
-#                print(sha1)
-#            else:
-#                print("Syntax Error.")
-#        print("Nothing Happened.")
-#    elif command == 'add':
-#        add(argv[1:])
-#

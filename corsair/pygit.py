@@ -213,7 +213,7 @@ def diff():
     changed, _, _ = get_status()
     entries_by_path = {e.path: e for e in read_index()}
     for i, path in enumerate(changed):
-        sha1 = entries_by_path[path].sha1.hex()
+        sha1 = binascii.hexlify(entries_by_path[path].sha1).decode('utf-8')
         obj_type, data = read_object(sha1)
         assert obj_type == 'blob'
         index_lines = data.decode().splitlines()
