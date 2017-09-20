@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
 import sys, os, zlib, struct, math, argparse, time
-import getopt, hashlib, collections, binascii
+import getopt, hashlib, collections, binascii, stat
 
 # ./.mygit, same as ./.git
-baseName = '.mygit'
+baseName = '.git'
 
 # Data for one entry in the git index (.git/index)
 ''' Parse Index File.
@@ -52,13 +52,22 @@ def findObject(hashCode):
 
 def readObject(hashCode):
     ''' Read object with given SHA1 hashcode.
-        return: tuple of (type, data), or ValueError if not found.
+        Return: tuple of (type, data), or ValueError if not found.
     '''
     path = findObject(hashCode)
-    # Notice, Zlib Decompress first.
+    # Notice, the object file was Zlib compressed.
     fullData = zlib.decompress(readFile(path))
+    ''' fullData =  b'tree 114\x00100664 main.cpp\x00\xd8\xc1\xa2&i{:\x12\xf9%
+        \x85\x03\x13\xe3{\x91\xe6"\xe4\xce100775 parse_index.py\x00\xd6\x8e
+        \x19\x16S\xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775 
+        pygit.py\x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
+    '''
     # find the first occurance of b'\x00', take index as 8
-    nullIndex = fullData.index(b'\x00')
+    try:
+        nullIndex = fullData.index(b'\x00')
+    except ValueError:
+        print("Wrong Object File. Exit Now.")
+        sys.exit(1)
     # [ ), right not included.
     header = fullData[0:nullIndex]
     # header = b'tree 114'
@@ -77,25 +86,62 @@ def readTree(hashCode = None, data = None):
         assert objType == 'true'
     elif data is None:
         print("You Should Specify 'sha1' or 'data'")
-    # data =  b'100664 main.cpp\x00\xd8\xc1\xa2&i{:\x12\xf9%\x85\x03\x13
-    # \xe3{\x91\xe6"\xe4\xce100775 parse_index.py\x00\xd6\x8e\x19\x16S
-    # \xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775 pygit.py
-    # \x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
-    print("data = ", data)
+    ''' data =  b'100664 main.cpp\x00\xd8\xc1\xa2&i{:\x12\xf9%\x85\x03\x13
+        \xe3{\x91\xe6"\xe4\xce100775 parse_index.py\x00\xd6\x8e\x19\x16S
+        \xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775 pygit.py
+        \x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
+    '''
+    # B.index(sub[, start[, end]]) -> int
+    # Like B.find() but raise ValueError when the substring is not found.
+    start = 0
     entries = []
-
+    while True:
+        try:
+            # index = 15
+            index = data.index(b'\x00', start)
+        except ValueError:
+            break
+        # ['100664', 'main.cpp']
+        mode, path = data[start:index].decode('utf-8').split()
+        sha1 = data[index + 1:index + 21]
+        # pack three elements as a tuple.
+        # ('100664', 'main.cpp', 'd8c1a226697b3a12f925850313e37b91e622e4ce')
+        mixTuple = (mode, path, binascii.hexlify(sha1).decode('utf-8'))
+        entries.append(mixTuple)
+        start = index + 21
+    return entries
 
 def catFile(mode, hashCode):
     ''' Upper function of cat-file call. '''
+    ''' git cat-file -p 19b5340d1316fc3f19b4d87f558ad2bd082d80fd
+        100644 blob 49ec02b198e6ce4b454a9958929efe62cb5b530f    main.cpp
+        100755 blob 0feef4cb2560de7e7380d2396a1e5fa18d92da37    mygit.py
+        100755 blob 6dd1382a4dcc9ef465515885865f41f89623873c    parse_index.py
+        100755 blob 4285790ef284f43f960f4e2b85c464fb8d473767    pygit.py
+    '''
     objType, data = readObject(hashCode)
-
     if objType in ['blob', 'commit']:
         sys.stdout.buffer.write(data)
     elif objType == 'tree':
-        readTree(data = data)
-
-
-
+        # ('100664', 'main.cpp', 'd8c1a226697b3a12f925850313e37b91e622e4ce')
+        for mode, path, sha1 in readTree(data = data):
+            # int(x, base=10) -> integer, int(modeStr, 8) = 33188
+            modInt = int(mode, 8)
+            # S_ISDIR(mode) -> bool
+            # Return True if mode is from a directory.
+            if stat.S_ISDIR(modInt):
+                type = 'tree' 
+            else:
+                type = 'blob'
+            # int('040000', 8) = 16384
+            # stat.S_ISDIR(16384) = True
+            '''040000 tree f90a0dbf3408bfc7a52e1693314abf8abbf7b7f7    haha
+               100644 blob 49ec02b198e6ce4b454a9958929efe62cb5b530f    main.cpp
+            '''
+            # print '040000', notice '0' before '40000'.
+            # The store value is only '40000', need to be adjusted to length 6.
+            # {:06} => 016384, {:06o} => 040000
+            print("{:06o} {} {}\t{}".format(modInt, type, sha1, path))
 
 def getLocalMasterHash():
     ''' Get SHA-1 of the latest commit of local master branch. '''
@@ -440,11 +486,23 @@ if __name__ == '__main__':
             help='show diff of files changed (between index and working '
                  'copy)')
 
+    ''' > python3 mygit.py hash-object -h
+      usage: mygit.py hash-object [-h] [-t {commit,tree,blob}] [-w] path
+      
+      positional arguments:
+        path                  path of file to hash
+      
+      optional arguments:
+        -h, --help            show this help message and exit
+        -t {commit,tree,blob}
+                              type of object (default 'blob')
+        -w                    write object to object store (as well as printing
+                              hash)
+    '''
     sub_parser = sub_parsers.add_parser('hash-object',
             help='hash contents of given path (and optionally write to '
                  'object store)')
-    sub_parser.add_argument('path',
-            help='path of file to hash')
+    sub_parser.add_argument('path', help='path of file to hash')
     sub_parser.add_argument('-t', choices=['commit', 'tree', 'blob'],
             default='blob', dest='type',
             help='type of object (default %(default)r)')

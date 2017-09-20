@@ -394,7 +394,7 @@ def read_tree(sha1=None, data=None):
         mode_str, path = data[i:end].decode().split()
         mode = int(mode_str, 8)
         digest = data[end + 1:end + 21]
-        entries.append((mode, path, digest.hex()))
+        entries.append((mode, path, binascii.hexlify(digest).decode('utf-8')))
         i = end + 1 + 20
     return entries
 
