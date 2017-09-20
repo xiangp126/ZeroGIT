@@ -538,24 +538,22 @@ if __name__ == '__main__':
             help='text of commit message')
 
     subParser = subParsers.add_parser('diff',
-            help='show diff of files changed (between index and working '
-                 'copy)')
+          help = 'show diff of files changed (between index and working tree)')
 
-    # git hash-object -t {commit,tree,blob}] [-w] path
+    # git hash-object -t {commit,tree,blob}] [-w] <file_name>
     subParser = subParsers.add_parser('hash-object',
-            help='hash contents of given path (optionally write to '
+            help = 'hash contents of given file(optionally write to '
                  'object store)')
-    subParser.add_argument('path', help='path of file to hash')
-    subParser.add_argument('-t', choices=['commit', 'tree', 'blob'],
-            default='blob', dest='type',
-            help='type of object (default %(default)r)')
-    subParser.add_argument('-w', action='store_true', dest='write',
-            help='write object to object store (as well as printing hash)')
+    subParser.add_argument('path', help = 'path of file to hash')
+    subParser.add_argument('-t', choices = ['commit', 'tree', 'blob'],
+            default = 'blob', dest = 'type',
+            help = 'object type (default %(default)r)')
+    subParser.add_argument('-w', action = 'store_true', dest = 'write',
+            help = "write the object into the object database")
 
+    # git init
     subParser = subParsers.add_parser('init',
-            help='initialize a new repo')
-#    subParser.add_argument('repo',
-#            help='directory name for new repo')
+            help = 'initialize a new repo')
 
     subParser = subParsers.add_parser('ls-files',
             help='list files in index')
@@ -599,7 +597,7 @@ if __name__ == '__main__':
     elif args.command == 'diff':
         diff()
     elif args.command == 'hash-object':
-        sha1 = hashObject(readFile(args.path), args.type, write=args.write)
+        sha1 = hashObject(readFile(args.path), args.type, args.write)
         print(sha1)
     elif args.command == 'init':
         init('.')
