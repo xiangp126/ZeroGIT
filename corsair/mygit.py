@@ -50,18 +50,21 @@ def findObject(hashCode):
     # .git/objects/48/0fe2738082e4f75c9c6bf154af70c12d9b55af
     return os.path.join(objDir, objs[0])
 
-def readObject(hashCode):
+def readObject(hashCode, printRaw = False):
     ''' Read object with given SHA1 hashcode.
         Return: tuple of (type, data), or ValueError if not found.
     '''
     path = findObject(hashCode)
     # Notice, the object file was Zlib compressed.
-    fullData = zlib.decompress(readFile(path))
     ''' fullData =  b'tree 114\x00100664 main.cpp\x00\xd8\xc1\xa2&i{:\x12\xf9%
         \x85\x03\x13\xe3{\x91\xe6"\xe4\xce100775 parse_index.py\x00\xd6\x8e
         \x19\x16S\xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775 
         pygit.py\x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
     '''
+    fullData = zlib.decompress(readFile(path))
+    if printRaw:
+        print(fullData)
+
     # find the first occurance of b'\x00', take index as 8
     try:
         nullIndex = fullData.index(b'\x00')
@@ -119,29 +122,38 @@ def catFile(mode, hashCode):
         100755 blob 6dd1382a4dcc9ef465515885865f41f89623873c    parse_index.py
         100755 blob 4285790ef284f43f960f4e2b85c464fb8d473767    pygit.py
     '''
-    objType, data = readObject(hashCode)
-    if objType in ['blob', 'commit']:
-        sys.stdout.buffer.write(data)
-    elif objType == 'tree':
-        # ('100664', 'main.cpp', 'd8c1a226697b3a12f925850313e37b91e622e4ce')
-        for mode, path, sha1 in readTree(data = data):
-            # int(x, base=10) -> integer, int(modeStr, 8) = 33188
-            modInt = int(mode, 8)
-            # S_ISDIR(mode) -> bool
-            # Return True if mode is from a directory.
-            if stat.S_ISDIR(modInt):
-                type = 'tree' 
-            else:
-                type = 'blob'
-            # int('040000', 8) = 16384
-            # stat.S_ISDIR(16384) = True
-            '''040000 tree f90a0dbf3408bfc7a52e1693314abf8abbf7b7f7    haha
-               100644 blob 49ec02b198e6ce4b454a9958929efe62cb5b530f    main.cpp
-            '''
-            # print '040000', notice '0' before '40000'.
-            # The store value is only '40000', need to be adjusted to length 6.
-            # {:06} => 016384, {:06o} => 040000
-            print("{:06o} {} {}\t{}".format(modInt, type, sha1, path))
+    if mode == 'raw':
+        objType, data = readObject(hashCode, True)
+    else:
+        objType, data = readObject(hashCode, )
+
+    if mode == 'size':
+        print(len(data))
+    elif mode == 'type':
+        print(objType)
+    elif mode == 'pretty':
+        if objType in ['blob', 'commit']:
+            sys.stdout.buffer.write(data)
+        elif objType == 'tree':
+            # ('100664', 'main.cpp', 'd8c1a226697b3a12f925850313e37b91e622e4ce')
+            for mode, path, sha1 in readTree(data = data):
+                # int(x, base=10) -> integer, int(modeStr, 8) = 33188
+                modInt = int(mode, 8)
+                # S_ISDIR(mode) -> bool
+                # Return True if mode is from a directory.
+                if stat.S_ISDIR(modInt):
+                    type = 'tree' 
+                else:
+                    type = 'blob'
+                # int('040000', 8) = 16384
+                # stat.S_ISDIR(16384) = True
+                '''040000 tree f90a0dbf3408bfc7a52e1693314abf8abbf7b7f7    haha
+                   100644 blob 49ec02b198e6ce4b454a9958929efe62cb5b530f    main.cpp
+                '''
+                # print '040000', notice '0' before '40000'.
+                # The store value is only '40000', need to be adjusted to length 6.
+                # {:06} => 016384, {:06o} => 040000
+                print("{:06o} {} {}\t{}".format(modInt, type, sha1, path))
 
 def getLocalMasterHash():
     ''' Get SHA-1 of the latest commit of local master branch. '''
@@ -454,84 +466,78 @@ def usage():
     print("fix me usage")
 
 if __name__ == '__main__':
-
+    ''' The help message was referenced by git relative page. '''
     parser = argparse.ArgumentParser()
-    sub_parsers = parser.add_subparsers(dest='command', metavar='command')
-    sub_parsers.required = True
+    subParsers = parser.add_subparsers(dest = 'command')
+    subParsers.required = True
 
-    sub_parser = sub_parsers.add_parser('add',
-            help='add file(s) to index')
-    sub_parser.add_argument('paths', nargs='+', metavar='path',
-            help='path(s) of files to add')
+    # git add main.cpp parse_index.py
+    subParser = subParsers.add_parser('add', help='Add file contents to the index')
+    subParser.add_argument('paths', nargs='+', help='path(s) of files to add')
 
-    sub_parser = sub_parsers.add_parser('cat-file',
+    # git cat-file [-p] SHA1
+    subParser = subParsers.add_parser('cat-file',
             help='display contents of object')
-    valid_modes = ['commit', 'tree', 'blob', 'size', 'type', 'pretty']
-    sub_parser.add_argument('mode', choices=valid_modes,
-            help='object type (commit, tree, blob) or display mode (size, '
-                 'type, pretty)')
-    sub_parser.add_argument('hash_prefix',
-            help='SHA-1 hash (or hash prefix) of object to display')
+    subParser.add_argument('-t', '--type', action = 'store_true',
+                                    dest = 'type', help = "show object type")
+    subParser.add_argument('-s', '--size', action = 'store_true',
+                                    dest = 'size', help = "show object size")
+    subParser.add_argument('-p', '--pretty', action = 'store_true',
+                     dest = 'pretty', help = "pretty-print object's content")
+    subParser.add_argument('-r', '--raw', action = 'store_true',
+           dest = 'raw', help = "show raw data of object after decompressed")
+    subParser.add_argument('sha1', help = "SHA1 of the object")
+    subParser.required = False
 
-    sub_parser = sub_parsers.add_parser('commit',
+    # git commit -m 'message'
+    subParser = subParsers.add_parser('commit',
             help='commit current state of index to master branch')
-    sub_parser.add_argument('-a', '--author',
+    subParser.add_argument('-a', '--author',
             help='commit author in format "A U Thor <author@example.com>" '
                  '(uses GIT_AUTHOR_NAME and GIT_AUTHOR_EMAIL environment '
                  'variables by default)')
-    sub_parser.add_argument('-m', '--message', required=True,
+    subParser.add_argument('-m', '--message', required=True,
             help='text of commit message')
 
-    sub_parser = sub_parsers.add_parser('diff',
+    subParser = subParsers.add_parser('diff',
             help='show diff of files changed (between index and working '
                  'copy)')
 
-    ''' > python3 mygit.py hash-object -h
-      usage: mygit.py hash-object [-h] [-t {commit,tree,blob}] [-w] path
-      
-      positional arguments:
-        path                  path of file to hash
-      
-      optional arguments:
-        -h, --help            show this help message and exit
-        -t {commit,tree,blob}
-                              type of object (default 'blob')
-        -w                    write object to object store (as well as printing
-                              hash)
-    '''
-    sub_parser = sub_parsers.add_parser('hash-object',
-            help='hash contents of given path (and optionally write to '
+    # git hash-object -t {commit,tree,blob}] [-w] path
+    subParser = subParsers.add_parser('hash-object',
+            help='hash contents of given path (optionally write to '
                  'object store)')
-    sub_parser.add_argument('path', help='path of file to hash')
-    sub_parser.add_argument('-t', choices=['commit', 'tree', 'blob'],
+    subParser.add_argument('path', help='path of file to hash')
+    subParser.add_argument('-t', choices=['commit', 'tree', 'blob'],
             default='blob', dest='type',
             help='type of object (default %(default)r)')
-    sub_parser.add_argument('-w', action='store_true', dest='write',
+    subParser.add_argument('-w', action='store_true', dest='write',
             help='write object to object store (as well as printing hash)')
 
-    sub_parser = sub_parsers.add_parser('init',
+    subParser = subParsers.add_parser('init',
             help='initialize a new repo')
-#    sub_parser.add_argument('repo',
+#    subParser.add_argument('repo',
 #            help='directory name for new repo')
 
-    sub_parser = sub_parsers.add_parser('ls-files',
+    subParser = subParsers.add_parser('ls-files',
             help='list files in index')
-    sub_parser.add_argument('-s', '--stage', action='store_true',
+    subParser.add_argument('-s', '--stage', action='store_true',
             help='show object details (mode, hash, and stage number) in '
                  'addition to path')
 
-    sub_parser = sub_parsers.add_parser('push',
+    subParser = subParsers.add_parser('push',
             help='push master branch to given git server URL')
-    sub_parser.add_argument('git_url',
+    subParser.add_argument('git_url',
             help='URL of git repo, eg: https://github.com/benhoyt/pygit.git')
-    sub_parser.add_argument('-p', '--password',
+    subParser.add_argument('-p', '--password',
             help='password to use for authentication (uses GIT_PASSWORD '
                  'environment variable by default)')
-    sub_parser.add_argument('-u', '--username',
+    subParser.add_argument('-u', '--username',
             help='username to use for authentication (uses GIT_USERNAME '
                  'environment variable by default)')
 
-    sub_parser = sub_parsers.add_parser('status',
+    # git status
+    subParser = subParsers.add_parser('status',
             help='show status of working copy')
 
     args = parser.parse_args()
@@ -539,9 +545,16 @@ if __name__ == '__main__':
         add(args.paths)
     elif args.command == 'cat-file':
         try:
-            catFile(args.mode, args.hash_prefix)
+            if args.type:
+                catFile('type', args.sha1)
+            elif args.size:
+                catFile('size', args.sha1)
+            elif args.pretty:
+                catFile('pretty', args.sha1)
+            elif args.raw:
+                catFile('raw', args.sha1)
         except ValueError as error:
-            print(error, file=sys.stderr)
+            print(error, file = sys.stderr)
             sys.exit(1)
     elif args.command == 'commit':
         commit(args.message)
