@@ -31,6 +31,24 @@ IndexEntry = collections.namedtuple('IndexEntryType', [
     'ctime_s', 'ctime_n', 'mtime_s', 'mtime_n', 'dev', 'ino', 'mode', 'uid',
     'gid', 'size', 'sha1', 'flags', 'path'])
 
+def lsFiles(verbose = False):
+    ''' Show staged contents' object name in the output. '''
+    for entry in readIndex():
+        ''' IndexEntryType(ctime_s=1505698291, ctime_n=0, mtime_s=1505698291,
+            mtime_n=0, dev=64512, ino=194773692, mode=33277, uid=1000, 
+            gid=1000, size=8920, 
+ sha1=b'\xd6\x8e\x19\x16S\xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0',
+            flags=14, path='parse_index.py')
+        '''
+        if verbose:
+            sIndex = 0
+            # > echo "obase = 8; ibase = 10; 33204" | bc      ==> 100664
+            print('{:06o} {} {}\t{}'.format(entry.mode, 
+                binascii.hexlify(entry.sha1).decode('utf-8'),
+                sIndex, entry.path))
+        else:
+            print(entry.path)
+
 def diff():
     ''' Show diff between index and working tree. '''
     ''' entries_by_path = {e.path: e for e in read_index()} = 
@@ -78,7 +96,13 @@ def findObject(hashCode):
         sys.exit(1)
     objDir = os.path.join(baseName, 'objects', hashCode[:2])
     restHashCode = hashCode[2:]
-    objs = [name for name in os.listdir(objDir) if name.startswith(restHashCode)]
+    try:
+        objs = [name for name in os.listdir(objDir) 
+                                    if name.startswith(restHashCode)]
+    except FileNotFoundError:
+        print("Error, File Not Found.")
+        sys.exit(1)
+
     if not objs:
         # "Object '0fe2738082e4f75c9c6bf154af70c12d9b55af' Not Found."
         print("Object {!r} Not Found.".format(hashCode))
@@ -509,9 +533,31 @@ if __name__ == '__main__':
     subParsers = parser.add_subparsers(dest = 'command')
     subParsers.required = True
 
+    # git init
+    subParser = subParsers.add_parser('init', help = 'initialize a new repo')
+
     # git add main.cpp parse_index.py
-    subParser = subParsers.add_parser('add', help='Add file contents to the index')
-    subParser.add_argument('paths', nargs='+', help='path(s) of files to add')
+    subParser = subParsers.add_parser('add', 
+                                     help = 'Add file contents to the index')
+    subParser.add_argument('paths', nargs = '+', 
+                                     help = 'path(s) of files to add')
+
+    # git hash-object -t {commit,tree,blob}] [-w] <file_name>
+    subParser = subParsers.add_parser('hash-object',
+            help = 'hash contents of given file(optionally write to '
+                 'object store)')
+    subParser.add_argument('path', help = 'path of file to hash')
+    subParser.add_argument('-t', choices = ['commit', 'tree', 'blob'],
+            default = 'blob', dest = 'type',
+            help = 'object type (default %(default)r)')
+    subParser.add_argument('-w', action = 'store_true', dest = 'write',
+            help = "write the object into the object database")
+
+    # git ls-files -s
+    subParser = subParsers.add_parser('ls-files', help = 'list files in index')
+    subParser.add_argument('-s', '--stage', action = 'store_true', 
+                dest = 'stage', help = 'show object details (mode, hash, and '
+                'stage number) in addition to path')
 
     # git cat-file [-p] SHA1
     subParser = subParsers.add_parser('cat-file',
@@ -537,29 +583,9 @@ if __name__ == '__main__':
     subParser.add_argument('-m', '--message', required=True,
             help='text of commit message')
 
+    # git diff
     subParser = subParsers.add_parser('diff',
           help = 'show diff of files changed (between index and working tree)')
-
-    # git hash-object -t {commit,tree,blob}] [-w] <file_name>
-    subParser = subParsers.add_parser('hash-object',
-            help = 'hash contents of given file(optionally write to '
-                 'object store)')
-    subParser.add_argument('path', help = 'path of file to hash')
-    subParser.add_argument('-t', choices = ['commit', 'tree', 'blob'],
-            default = 'blob', dest = 'type',
-            help = 'object type (default %(default)r)')
-    subParser.add_argument('-w', action = 'store_true', dest = 'write',
-            help = "write the object into the object database")
-
-    # git init
-    subParser = subParsers.add_parser('init',
-            help = 'initialize a new repo')
-
-    subParser = subParsers.add_parser('ls-files',
-            help='list files in index')
-    subParser.add_argument('-s', '--stage', action='store_true',
-            help='show object details (mode, hash, and stage number) in '
-                 'addition to path')
 
     subParser = subParsers.add_parser('push',
             help='push master branch to given git server URL')
@@ -589,6 +615,9 @@ if __name__ == '__main__':
                 catFile('pretty', args.sha1)
             elif args.raw:
                 catFile('raw', args.sha1)
+            else:
+                print("Missing Parameter before SHA1, Please See Help Page.")
+                sys.exit(1)
         except ValueError as error:
             print(error, file = sys.stderr)
             sys.exit(1)
@@ -602,7 +631,7 @@ if __name__ == '__main__':
     elif args.command == 'init':
         init('.')
     elif args.command == 'ls-files':
-        ls_files(details=args.stage)
+        lsFiles(args.stage)
     elif args.command == 'push':
         push(args.git_url, username=args.username, password=args.password)
     elif args.command == 'status':

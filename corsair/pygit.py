@@ -163,7 +163,8 @@ def ls_files(details=False):
         if details:
             stage = (entry.flags >> 12) & 3
             print('{:6o} {} {:}\t{}'.format(
-                    entry.mode, entry.sha1.hex(), stage, entry.path))
+                    entry.mode, binascii.hexlify(entry.sha1).decode(), 
+                                                   stage, entry.path))
         else:
             print(entry.path)
 
