@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import sys, os, zlib, struct, math, argparse, time
+import sys, os, zlib, struct, math, argparse, time, operator
 import getopt, hashlib, collections, binascii, stat, difflib
 
 # ./.mygit, same as ./.git
@@ -80,8 +80,8 @@ def diff():
         # argument to "" so that the output will be uniformly newline free
         diffLines = difflib.unified_diff(
                     indexLines, workingLines,
-                    '{} (index)'.format(path),
-                    '{} (working tree)'.format(path),
+                    'a/{} (index)'.format(path),
+                    'b/{} (working tree)'.format(path),
                     lineterm = '')
                     
         for line in diffLines:
@@ -414,8 +414,11 @@ def status():
 
 def add(paths):
     ''' Add files to 'stage', same as 'git add main.cpp'. '''
+    entriesByPath = {entry.path: entry for entry in readIndex()}
     entries = []
+
     # type(paths) = <class 'list'>
+    # make sure git add XX did not affect the others already in index file.
     for path in paths:
         sha1 = hashObject(readFile(path), 'blob', True)
         ''' os.stat(path) = os.stat_result(st_mode=33204, st_ino=195100843, 
@@ -432,11 +435,15 @@ def add(paths):
                 int(st.st_ctime), 0, int(st.st_mtime), 0, st.st_dev, st.st_ino,
                 st.st_mode, st.st_uid, st.st_gid, st.st_size, bytes.fromhex(sha1),
                 flags, path)
-        entries.append(entry)
-        writeIndex(entries)
+        entriesByPath[path] = entry
+    entries = list(entriesByPath.values())
+    entries.sort(key = operator.attrgetter('path'))
+    writeIndex(entries)
 
 def writeIndex(entries):
     ''' Write IndexEntry objects to mygit index file. '''
+    # read before write, see if the path already exists.
+
     packedEntries = []
     for entry in entries:
         # >: big-endian, std. size & alignment
@@ -602,6 +609,7 @@ if __name__ == '__main__':
     subParser = subParsers.add_parser('status',
                                         help='show status of working copy')
 
+    # actual arguments parse stage.
     args = parser.parse_args()
     if args.command == 'add':
         add(args.paths)
@@ -637,5 +645,10 @@ if __name__ == '__main__':
     elif args.command == 'status':
         status()
     else:
+        # 'unexpected command {}'.format(command) 
+        #                    => "unexpected command diff"
+        # {!r} => r => raw
+        # 'unexpected command {!r}'.format(command) 
+        #                    => "unexpected command 'diff'"
         assert False, 'unexpected command {!r}'.format(args.command)
 
