@@ -92,16 +92,14 @@ def findObject(hashCode):
         exit if there are no one or more than one object with this prefix.
     """
     if len(hashCode) < 7:
-        print("Hash Prefix Must Longer than 7 Characters.")
-        sys.exit(1)
+        errMsg("Hash Prefix Must Longer than 7 Characters.")
     objDir = os.path.join(baseName, 'objects', hashCode[:2])
     restHashCode = hashCode[2:]
     try:
         objs = [name for name in os.listdir(objDir) 
                                     if name.startswith(restHashCode)]
     except FileNotFoundError:
-        print("Error, File Not Found.")
-        sys.exit(1)
+        errMsg("File Not Found.")
 
     if not objs:
         # "Object '0fe2738082e4f75c9c6bf154af70c12d9b55af' Not Found."
@@ -131,8 +129,8 @@ def readObject(hashCode, printRaw = False):
     try:
         nullIndex = fullData.index(b'\x00')
     except ValueError:
-        print("Wrong Object File. Exit Now.")
-        sys.exit(1)
+        errMsg("Wrong Object File. Exit Now.")
+
     # [ ), right not included.
     header = fullData[0:nullIndex]
     # header = b'tree 114'
@@ -505,8 +503,11 @@ def hashObject(data, objType = 'blob', write = False):
 
 def readFile(path):
     ''' Read file as bytes at given path. '''
-    with open(path, "rb") as file:
-        return file.read()
+    try:
+        with open(path, "rb") as file:
+            return file.read()
+    except FileNotFoundError:
+        errMsg("File Not Found.")
 
 def writeFile(path, data):
     ''' write bytes to file at given path. '''
@@ -531,8 +532,22 @@ def init(repo):
     else:
         print("Warnning: Repository {} Not Empty.".format(baseName))
 
-def usage():
-    print("fix me usage")
+def addFilesInDir(newPaths, path):
+    ''' Add all files recursively under the dir. '''
+    if not os.path.isdir(path):
+        newPaths.append(os.path.join('.', path))
+        return
+        
+    for root, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if d != baseName]
+        if not (files == []):
+            for file in files:
+                newPaths.append(os.path.join(root, file))
+
+def errMsg(msg):
+    ''' Print Error Message. '''
+    print("Error, {}".format(msg))
+    sys.exit(1)
 
 if __name__ == '__main__':
     ''' The help message was referenced by git relative page. '''
@@ -611,8 +626,23 @@ if __name__ == '__main__':
 
     # actual arguments parse stage.
     args = parser.parse_args()
+
     if args.command == 'add':
-        add(args.paths)
+
+        param = args.paths
+        newPaths  = []
+        if param == list('.'):
+            # add support to 'git add .' for all files in current dir.
+            # excluded post fix file.
+            exPostfix = ['swp', 'swo']
+            addFilesInDir(newPaths, '.')
+        else:
+            for path in param:
+                print('path = ', path)
+                addFilesInDir(newPaths, path)
+
+        print(newPaths)
+
     elif args.command == 'cat-file':
         try:
             if args.type:
