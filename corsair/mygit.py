@@ -226,7 +226,6 @@ def getLocalMasterHash():
 
 def writeTree():
     ''' Write a tree object from the current index file. '''
-    treeEntries = []
     for entry in readIndex():
         # entry.mode = 33277, {:o} o => octal
         # '{:o} {}'.format(entry.mode, entry.path) => '100775 pygit.py'
@@ -242,9 +241,15 @@ def commit(message):
         return: sha1 of commit object. '''
     treeHash = writeTree()
     parent = getLocalMasterHash()
+
     # 'corsair <xiangp126@sjtu.edu.cn>'
-    author = '{} <{}>'.format(
-        os.environ['GIT_AUTHOR_NAME'], os.environ['GIT_AUTHOR_EMAIL'])
+    author = 'Annoymous'
+    email = 'jokers@sjtu.edu.cn'
+    try:
+        author = '{} <{}>'.format(
+            os.environ['GIT_AUTHOR_NAME'], os.environ['GIT_AUTHOR_EMAIL'])
+    except KeyError:
+        author = '{} <{}>'.format(author, email)
 
     # format author time.
     timeStamp = int(time.mktime(time.localtime()))
@@ -412,10 +417,7 @@ def status():
 
 def add(paths):
     ''' Add files to 'stage', same as 'git add main.cpp'. '''
-    print("Entering add.")
     entriesByPath = {entry.path: entry for entry in readIndex()}
-    print("entriesByPath = ", entriesByPath)
-
     entries = []
 
     # type(paths) = <class 'list'>
@@ -643,8 +645,9 @@ if __name__ == '__main__':
             if file.split('.')[-1] in exPostfix:
                 newPaths.remove(file)
                 
-        print(newPaths)
         add(newPaths)
+        for path in newPaths:
+            print(path)
 
     elif args.command == 'cat-file':
         try:
