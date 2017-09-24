@@ -7,30 +7,30 @@
     every time you use git add, the file was hashed as a whole and was stored in .git/object/'hashcode'
 
     git has three types of data structures, blob/commit/tree
-    take sample.c as example
+    take main.cpp as example
 
 ### HashCode
 
 * Part One 
 ``` bash
 
-    > cat sample.c | wc
+    > cat main.cpp | wc
           5      12      77
     # namely 77 characters total. 
     # the blob data structure is just like "blob ${chars_total}\0${Contents}"
-    # we suppose this sample.c will be stored as "blob 77\0${Contents}" 
+    # we suppose this main.cpp will be stored as "blob 77\0${Contents}" 
     # in a object file.
 
-    > echo -ne "blob 77\0" | cat - sample.c
+    > echo -ne "blob 77\0" | cat - main.cpp
     blob 77#include <stdio.h>
 
     int main(int argc, const char *argv[]) {
             return 0;
     }
-    > echo -ne "blob 77\0" | cat - sample.c | shasum -a 1
+    > echo -ne "blob 77\0" | cat - main.cpp | shasum -a 1
     bee80fe26e979b11a5ed10f4802c6aa9fbee3375  -
 
-    > git add sample.c
+    > git add main.cpp
     > find .git/objects/ -type f
     .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375
     # and it was right there.
@@ -75,11 +75,11 @@
 
 ### Index Object
     # So much enhanced by this part, and you can use my self-writted script: 
-    # after git add sample.c we see the .git/index
+    # after git add main.cpp we see the .git/index
 
     .git >  cat index
     KY�����m�
-             �K����M���n�����,j���3sample.c�'m~�3 (���/�λ
+             �K����M���n�����,j���3main.cpp�'m~�3 (���/�λ
 
     > xxd index
     0000000: 4449 5243 0000 0002 0000 0001 59ac c102  DIRC........Y...
@@ -91,7 +91,7 @@
     0000060: 88ac d72f e28b cebb                      .../....
 
     Or vim -b index & :% !xxd
-    > git add sample.c parse_index.py
+    > git add main.cpp parse_index.py
     
     # self-written script to parse this index file. Multiple files supported.
     > ./parse_index.py .git/index
@@ -129,7 +129,7 @@
     Extended Flag: 0
     Stage : 0
     Length: 8
-    File Name: sample.c
+    File Name: main.cpp
     CheckSum: f3bae40e88e41eee3d78b2ae3c7ab4f2963d8f19
     -------------------- End of Parse --------------------
     
@@ -149,7 +149,7 @@
     [master (root-commit) 69e6377] try #1
      2 files changed, 242 insertions(+)
      create mode 100755 parse_index.py
-     create mode 100644 sample.c
+     create mode 100644 main.cpp
     
     > find .git/objects/ -type f
     .git/objects/6d/d1382a4dcc9ef465515885865f41f89623873c
@@ -163,7 +163,7 @@
     
     > git cat-file -p 89f329a6a91ccdf6646edd513b1ccbf6616020bf
     100755 blob 6dd1382a4dcc9ef465515885865f41f89623873c    parse_index.py
-    100644 blob bee80fe26e979b11a5ed10f4802c6aa9fbee3375    sample.c
+    100644 blob bee80fe26e979b11a5ed10f4802c6aa9fbee3375    main.cpp
     
     > git cat-file -t 89f329a6a91ccdf6646edd513b1ccbf6616020bf
     tree
