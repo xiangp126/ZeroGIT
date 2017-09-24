@@ -412,7 +412,10 @@ def status():
 
 def add(paths):
     ''' Add files to 'stage', same as 'git add main.cpp'. '''
+    print("Entering add.")
     entriesByPath = {entry.path: entry for entry in readIndex()}
+    print("entriesByPath = ", entriesByPath)
+
     entries = []
 
     # type(paths) = <class 'list'>
@@ -503,11 +506,8 @@ def hashObject(data, objType = 'blob', write = False):
 
 def readFile(path):
     ''' Read file as bytes at given path. '''
-    try:
-        with open(path, "rb") as file:
-            return file.read()
-    except FileNotFoundError:
-        errMsg("File Not Found.")
+    with open(path, "rb") as file:
+        return file.read()
 
 def writeFile(path, data):
     ''' write bytes to file at given path. '''
@@ -637,16 +637,14 @@ if __name__ == '__main__':
             for path in param:
                 addFilesInDir(newPaths, path)
 
-        print("First Sight:", newPaths)
         # excluded post fix file.
         exPostfix = ['swp', 'swo']
         for file in newPaths:
-            print('single file:', file)
             if file.split('.')[-1] in exPostfix:
-                print("Here is: {}".format(file.split('.')))
                 newPaths.remove(file)
                 
         print(newPaths)
+        add(newPaths)
 
     elif args.command == 'cat-file':
         try:
