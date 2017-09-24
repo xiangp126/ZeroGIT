@@ -628,19 +628,24 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.command == 'add':
-
         param = args.paths
         newPaths  = []
         if param == list('.'):
             # add support to 'git add .' for all files in current dir.
-            # excluded post fix file.
-            exPostfix = ['swp', 'swo']
             addFilesInDir(newPaths, '.')
         else:
             for path in param:
-                print('path = ', path)
                 addFilesInDir(newPaths, path)
 
+        print("First Sight:", newPaths)
+        # excluded post fix file.
+        exPostfix = ['swp', 'swo']
+        for file in newPaths:
+            print('single file:', file)
+            if file.split('.')[-1] in exPostfix:
+                print("Here is: {}".format(file.split('.')))
+                newPaths.remove(file)
+                
         print(newPaths)
 
     elif args.command == 'cat-file':
