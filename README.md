@@ -9,8 +9,11 @@ Including python version of git --> mygit.
 ## mygit.py
 It is a python edition of git, named mygit. The command is compatible with gun/git.
 
-### Features
-* git add
+### Evolution
+* add mygit commit Annoymous support
+* fix bug: mygit add *
+* add support for mygit cat-file -{s/t/p/r}
+* bug: mygit diff need to fix
 
 ### Usage
 
