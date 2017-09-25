@@ -356,6 +356,7 @@ def getStatus():
     ''' Get status of working tree, return (changedPaths, newPaths, delPath)
         as a tuple. '''
     paths = set()
+    print("Enter getStatus")
     ''' > for root, dirs, files in os.walk('.'):
           ...  dirs[:] = [d for d in dirs if d != '.mygit']
           ...  print("root = ", root, ", dirs = ", dirs, ", files = ", files)
@@ -395,7 +396,7 @@ def getStatus():
     # only two set() can minus each other.
     newFiles = paths - entryPaths
     deletedFiles = entryPaths - paths
-    #print(changedFiles, newFiles, deletedFiles)
+    print(changedFiles, newFiles, deletedFiles)
       
     return (sorted(changedFiles), sorted(newFiles), sorted(deletedFiles))
 
