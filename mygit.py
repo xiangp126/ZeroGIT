@@ -611,17 +611,6 @@ if __name__ == '__main__':
     subParser = subParsers.add_parser('diff',
           help = 'show diff of files changed (between index and working tree)')
 
-    subParser = subParsers.add_parser('push',
-            help='push master branch to given git server URL')
-    subParser.add_argument('git_url',
-            help='URL of git repo, eg: https://github.com/benhoyt/pygit.git')
-    subParser.add_argument('-p', '--password',
-            help='password to use for authentication (uses GIT_PASSWORD '
-                 'environment variable by default)')
-    subParser.add_argument('-u', '--username',
-            help='username to use for authentication (uses GIT_USERNAME '
-                 'environment variable by default)')
-
     # git status
     subParser = subParsers.add_parser('status',
                                         help='show status of working copy')
@@ -676,8 +665,6 @@ if __name__ == '__main__':
         init('.')
     elif args.command == 'ls-files':
         lsFiles(args.stage)
-    elif args.command == 'push':
-        push(args.git_url, username=args.username, password=args.password)
     elif args.command == 'status':
         status()
     else:
