@@ -13,11 +13,13 @@
 * bug: fkgit diff need to fix
 
 ## indexcat.py - parse index object
-git object was referenced by sha1 hashcode, every time you use git add,
-
-the file content was hashed as a whole and was stored in .git/object/'hashcode'
-
-git has three types of data structures, blob/commit/tree
+- git object was referenced by sha1 hashcode
+- every time you use git add, the file content was hashed as a whole
+- hashcode was stored in .git/object/'hashcode'
+- git has three types of data structures, blob/commit/tree
+- usage
+    - python3 indexcat.py [index_file]
+    - python3 indexcat.py .git/index
 
 ### secret of ./git/objects
 
@@ -87,7 +89,7 @@ int main(int argc, const char *argv[]) {
   | 9-bit unix perm   |        | 12-bit name length      |
 ```
 
-index itself is a binary file, directly cat will not take
+index itself is a binary file, directly cat make no sense
 
 ```bash
 $ cd ./git
@@ -108,9 +110,6 @@ Or vim -b index and then :% !xxd
 $ git add main.cpp indexcat.py
 
 # use self-written script to parse current index file, multiple files supported.
-$ python3 indexcat.py [index_file]
-$ python3 indexcat.py .git/index
-
 $ ./indexcat.py .git/index
 
 -------------------- Index File --------------------
@@ -161,7 +160,10 @@ $ git cat-file -p bee80fe26e979b11a5ed10f4802c6aa9fbee3375
 int main(int argc, const char *argv[]) {
     return 0;
 }
+```
 
+### tree and commit objects
+```bash
 $ git commit -m "try #1"
 [master (root-commit) 69e6377] try #1
  2 files changed, 242 insertions(+)
