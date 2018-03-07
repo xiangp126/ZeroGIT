@@ -2,6 +2,7 @@
 - my learning basic principle of Git
     - indexcat.py -> parse .git/index to human readable
     - fkgit.py    -> fake version of git, implement hash-object/add/diff etc
+    - only python3 supported
 
 ## Modification Note
 * new version of indexcat.py
@@ -18,7 +19,8 @@ the file content was hashed as a whole and was stored in .git/object/'hashcode'
 
 git has three types of data structures, blob/commit/tree
 
-* secret of ./git/objects
+### secret of ./git/objects
+
 take main.cpp as example, see how the objects/ files was generated
 
 ``` bash
@@ -45,7 +47,8 @@ $ find .git/objects/ -type f
 
 ```
 
-* contents stored in ./git/objects/
+### contents stored in ./git/objects/
+
 contents stored in the object file was compressed by zlib. In linux we can use
 
 gunzip to simulate compress & decompress.
@@ -62,7 +65,7 @@ int main(int argc, const char *argv[]) {
 
 ```
 
-* format of ./git/index
+### format of ./git/index
 
 ```bash
   | 0           | 4            | 8           | C              |
@@ -84,12 +87,11 @@ int main(int argc, const char *argv[]) {
   | 9-bit unix perm   |        | 12-bit name length      |
 ```
 
-### Index Object
+index itself is a binary file, directly cat will not take
 
-# So much enhanced by this part, and you can use my self-writted script:
-# after git add main.cpp we see the .git/index
-
-.git >  cat index
+```bash
+$ cd ./git
+$ cat index
 KY�����m�
          �K����M���n�����,j���3main.cpp�'m~�3 (���/�λ
 
@@ -102,10 +104,13 @@ $ xxd index
 0000050: 2e63 0000 da27 6d06 7e90 3320 ceac 7f28  .c...'m.~.3 ...(
 0000060: 88ac d72f e28b cebb                      .../....
 
-Or vim -b index & :% !xxd
+Or vim -b index and then :% !xxd
 $ git add main.cpp indexcat.py
 
-# self-written script to parse this index file. Multiple files supported.
+# use self-written script to parse current index file, multiple files supported.
+$ python3 indexcat.py [index_file]
+$ python3 indexcat.py .git/index
+
 $ ./indexcat.py .git/index
 
 -------------------- Index File --------------------
@@ -191,8 +196,9 @@ $ git cat-file -t 69e6377db0916d2b76efbbfcdf6b919400dbdf10
 commit
 
 # tree object is just like Directory in Linux OS
+```
 
-## Usage
+## Usage of fkgit.py
 
 add fkgit.py to PATH, and chmod +x to make it excutable.
 
@@ -218,7 +224,7 @@ optional arguments:
   -h, --help            show this help message and exit
 
 $ pwd
-/git_plumbing_toolkit/sample
+./fkgit/sample
 
 $ fkgit add .
 ./pygit.py
@@ -262,15 +268,6 @@ int main(int argc, const char *argv[]) {
     printf("Hello World!");
     return 0;
 }
-
-```
-
-## Usage
-Only python version 3 is supported.
-
-```bash
-$ python3 indexcat.py [index_file]
-$ python3 indexcat.py .git/index
 
 ```
 
