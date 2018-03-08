@@ -181,7 +181,7 @@ def parseIndex(myfile):
 
                 # parse different extersion signature
                 if extSign == 'TREE':
-                    # print message here to be compatible with mygit
+                    # print message here to be compatible with fkgit
                     print("-------------------- Extensions  --------------------")
                     print("Extension Signature: %s" %extSign)
                     ''' 32-bit size of the extension. '''

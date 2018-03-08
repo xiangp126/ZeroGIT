@@ -2,7 +2,7 @@
 import sys, os, zlib, struct, math, argparse, time, operator
 import getopt, hashlib, collections, binascii, stat, difflib
 
-# ./.mygit, same as ./.git
+# ./.fkgit, same as ./.git
 baseName = '.git'
 
 # Data for one entry in the git index (.git/index)
@@ -37,7 +37,7 @@ def lsFiles(verbose = False):
             mtime_n=0, dev=64512, ino=194773692, mode=33277, uid=1000,
             gid=1000, size=8920,
  sha1=b'\xd6\x8e\x19\x16S\xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0',
-            flags=14, path='parse_index.py')
+            flags=14, path='indexcat.py')
         '''
         if verbose:
             sIndex = 0
@@ -51,7 +51,7 @@ def lsFiles(verbose = False):
 def diff():
     ''' Show diff between index and working tree. '''
     ''' entries_by_path = {e.path: e for e in read_index()} =
-        {'parse_index.py': IndexEntry(..., ..., path='parse_index.py'),
+        {'indexcat.py': IndexEntry(..., ..., path='indexcat.py'),
         'main.cpp': IndexEntry(..., ..., path='main.cpp')}
     '''
     # type(entries_by_path) = <class 'dict'>, convert to Key -> Value.
@@ -59,8 +59,8 @@ def diff():
     ''' for path in enumerate(changed):
             ...  print(path)
                  ...
-                 (0, 'pygit.py')
-                 (1, 'mygit.py')
+                 (0, 'demo.py')
+                 (1, 'fkgit.py')
     '''
     changed, _, _ = getStatus()
     for _, path in enumerate(changed):
@@ -116,9 +116,9 @@ def readObject(hashCode, printRaw = False):
     path = findObject(hashCode)
     # Notice, the object file was Zlib compressed.
     ''' fullData =  b'tree 114\x00100664 main.cpp\x00\xd8\xc1\xa2&i{:\x12\xf9%
-        \x85\x03\x13\xe3{\x91\xe6"\xe4\xce100775 parse_index.py\x00\xd6\x8e
+        \x85\x03\x13\xe3{\x91\xe6"\xe4\xce100775 indexcat.py\x00\xd6\x8e
         \x19\x16S\xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775
-        pygit.py\x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
+        fkgit.py\x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
     '''
     fullData = zlib.decompress(readFile(path))
     if printRaw:
@@ -149,8 +149,8 @@ def readTree(hashCode = None, data = None):
     elif data is None:
         print("You Should Specify 'sha1' or 'data'")
     ''' data =  b'100664 main.cpp\x00\xd8\xc1\xa2&i{:\x12\xf9%\x85\x03\x13
-        \xe3{\x91\xe6"\xe4\xce100775 parse_index.py\x00\xd6\x8e\x19\x16S
-        \xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775 pygit.py
+        \xe3{\x91\xe6"\xe4\xce100775 indexcat.py\x00\xd6\x8e\x19\x16S
+        \xc2\xd2\x98\xe0\xdd\xfcW\xda\xeb=\xbdO\xa7\x8e\xf0100775 fkgit.py
         \x001\x03\x99\xe2Uh\xed4\x0f[\xba\xc6\x0f\xa3GU\xeb\x12\x85i'
     '''
     # B.index(sub[, start[, end]]) -> int
@@ -177,9 +177,9 @@ def catFile(mode, hashCode):
     ''' Upper function of cat-file call. '''
     ''' git cat-file -p 19b5340d1316fc3f19b4d87f558ad2bd082d80fd
         100644 blob 49ec02b198e6ce4b454a9958929efe62cb5b530f    main.cpp
-        100755 blob 0feef4cb2560de7e7380d2396a1e5fa18d92da37    mygit.py
-        100755 blob 6dd1382a4dcc9ef465515885865f41f89623873c    parse_index.py
-        100755 blob 4285790ef284f43f960f4e2b85c464fb8d473767    pygit.py
+        100755 blob 0feef4cb2560de7e7380d2396a1e5fa18d92da37    fkgit.py
+        100755 blob 6dd1382a4dcc9ef465515885865f41f89623873c    indexcat.py
+        100755 blob 4285790ef284f43f960f4e2b85c464fb8d473767    demo.py
     '''
     if mode == 'raw':
         objType, data = readObject(hashCode, True)
@@ -216,7 +216,7 @@ def catFile(mode, hashCode):
 
 def getLocalMasterHash():
     ''' Get SHA-1 of the latest commit of local master branch. '''
-    # '.mygit/refs/heads/master'
+    # '.fkgit/refs/heads/master'
     masterPath = os.path.join(baseName, 'refs', 'heads', 'master')
     try:
         return readFile(masterPath).decode('utf-8').strip()
@@ -227,7 +227,7 @@ def writeTree():
     ''' Write a tree object from the current index file. '''
     for entry in readIndex():
         # entry.mode = 33277, {:o} o => octal
-        # '{:o} {}'.format(entry.mode, entry.path) => '100775 pygit.py'
+        # '{:o} {}'.format(entry.mode, entry.path) => '100775 demo.py'
         modePath = '{:o} {}'.format(entry.mode, entry.path).encode('utf-8')
         treeEntry = modePath + b'\x00' + entry.sha1
         treeEntries.append(treeEntry)
@@ -356,16 +356,16 @@ def getStatus():
         as a tuple. '''
     paths = set()
     ''' > for root, dirs, files in os.walk('.'):
-          ...  dirs[:] = [d for d in dirs if d != '.mygit']
+          ...  dirs[:] = [d for d in dirs if d != '.fkgit']
           ...  print("root = ", root, ", dirs = ", dirs, ", files = ", files)
           ...
-          root =  . , dirs =  ['deer', 'lala'] , files =  ['pygit.py',
-                                    'main.cpp', 'parse_index.py', 'mygit.py']
+          root =  . , dirs =  ['deer', 'lala'] , files =  ['demo.py',
+                                    'main.cpp', 'indexcat.py', 'fkgit.py']
           root =  ./deer , dirs =  [] , files =  ['data.txt', 'raw.txt']
           root =  ./lala , dirs =  [] , files =  []
     '''
     for root, dirs, files in os.walk('.'):
-        # omit dir '.mygit'
+        # omit dir '.fkgit'
         dirs[:] = [d for d in dirs if d != baseName]
         for file in files:
             path = os.path.join(root, file)
@@ -373,12 +373,12 @@ def getStatus():
                 path = path[2:]
             paths.add(path)
     ''' entries_by_path = {e.path: e for e in read_index()} =
-        {'parse_index.py': IndexEntry(..., ..., path='parse_index.py'),
+        {'indexcat.py': IndexEntry(..., ..., path='indexcat.py'),
         'main.cpp': IndexEntry(..., ..., path='main.cpp')}
     '''
     # type(entries_by_path) = <class 'dict'>, convert to Key -> Value.
     entriesByPath = {entry.path: entry for entry in readIndex()}
-    # entryPaths = {'parse_index.py', 'main.cpp'}
+    # entryPaths = {'indexcat.py', 'main.cpp'}
     entryPaths = set(entriesByPath)
 
     changedFiles = set()
@@ -443,7 +443,7 @@ def add(paths):
     writeIndex(entries)
 
 def writeIndex(entries):
-    ''' Write IndexEntry objects to mygit index file. '''
+    ''' Write IndexEntry objects to fkgit index file. '''
     # read before write, see if the path already exists.
 
     packedEntries = []
@@ -517,16 +517,16 @@ def writeFile(path, data):
         file.write(data)
 
 def init(repo):
-    ''' Init .mygit associated files. '''
+    ''' Init .fkgit associated files. '''
     global baseName
     # if base dir not exists, just create it.
     if not os.path.exists(baseName):
         os.makedirs(baseName, exist_ok = True)
-        # ./.mygit/{objects, refs}
+        # ./.fkgit/{objects, refs}
         for name in ['objects', 'refs', 'refs/heads']:
             newDir = os.path.join(baseName, name)
             os.makedirs(newDir, exist_ok = True)
-        # ./.mygit/HEAD
+        # ./.fkgit/HEAD
         writePath = baseName + '/HEAD'
         writeFile(writePath, b'ref: refs/heads/master')
         print("Initialized Empty Repository {}".format(baseName))
@@ -559,7 +559,7 @@ if __name__ == '__main__':
     # git init
     subParser = subParsers.add_parser('init', help = 'initialize a new repo')
 
-    # git add main.cpp parse_index.py
+    # git add main.cpp indexcat.py
     subParser = subParsers.add_parser('add',
                                      help = 'Add file contents to the index')
     subParser.add_argument('paths', nargs = '+',
@@ -673,4 +673,3 @@ if __name__ == '__main__':
         # 'unexpected command {!r}'.format(command)
         #                    => "unexpected command 'diff'"
         assert False, 'unexpected command {!r}'.format(args.command)
-

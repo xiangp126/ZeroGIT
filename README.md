@@ -1,11 +1,12 @@
 ## Git Plumbing Toolkit
 - my learning basic principle of Git
     - indexcat.py -> parse .git/index to human readable
-    - fkgit.py    -> fake version of git, implement hash-object/add/diff etc
+    - fkgit.py    -> fake version of git, implement hash-object/ls-files/add/diff etc
     - only python3 supported
 
 ## Modification Note
-* new version of indexcat.py
+* reformat for fkgit.py
+* add default tackle file .git/index for indexcat.py
 * change python3 call of /usr/bin/env python3
 * add fkgit commit Annoymous support
 * fix bug: fkgit add *
@@ -56,7 +57,8 @@ contents stored in the object file was compressed by zlib. In linux we can use
 gunzip to simulate compress & decompress.
 
 ```bash
-$ printf "\x1f\x8b\x08\x00\x00\x00\x00\x00" | cat - .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375 | gzip -d 2>/dev/null
+$ printf "\x1f\x8b\x08\x00\x00\x00\x00\x00" |
+    cat - .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375 | gzip -d 2>/dev/null
 blob 77#include <stdio.h>
 
 int main(int argc, const char *argv[]) {
