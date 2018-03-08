@@ -282,5 +282,3 @@ int main(int argc, const char *argv[]) {
 [index-format](https://github.com/git/git/blob/master/Documentation/technical/index-format.txt)
 
 [What does the git index contain Exactly](https://stackoverflow.com/questions/4084921/what-does-the-git-index-contain-exactly/4086986#4086986)
-
-[BenHoyt:Pygit](http://benhoyt.com/writings/pygit/)
