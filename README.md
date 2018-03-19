@@ -1,5 +1,4 @@
-## Git Plumbing Toolkit
-- my learning basic principle of Git
+- tools for my learning basic principle of Git
     - indexcat.py -> parse .git/index to human readable
     - fkgit.py    -> fake version of git, implement hash-object/ls-files/add/diff etc
     - only python3 supported
