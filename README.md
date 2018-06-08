@@ -274,10 +274,5 @@ int main(int argc, const char *argv[]) {
 
 ```
 
-## Reference
-
-[Git Plumbing](http://git.oschina.net/progit/9-Git-%E5%86%85%E9%83%A8%E5%8E%9F%E7%90%86.html)
-
-[index-format](https://github.com/git/git/blob/master/Documentation/technical/index-format.txt)
-
-[What does the git index contain Exactly](https://stackoverflow.com/questions/4084921/what-does-the-git-index-contain-exactly/4086986#4086986)
+## License
+The [MIT](./LICENSE.txt) License (MIT)
