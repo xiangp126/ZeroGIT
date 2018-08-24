@@ -1,17 +1,19 @@
-- tools for my learning basic principle of Git
-    - indexcat.py -> parse .git/index to human readable
-    - fkgit.py    -> fake version of git, implement hash-object/ls-files/add/diff etc
-    - only python3 supported
+## Illustrate
+> tools for my learning basic principle of Git, only python3 supported
 
-## Modification Note
-* reformat for fkgit.py
-* add default tackle file .git/index for indexcat.py
-* change python3 call of /usr/bin/env python3
-* add fkgit commit Annoymous support
-* fix bug: fkgit add *
-* add support for fkgit cat-file -{s/t/p/r}
-* bug: fkgit diff need to fix
+Tool Name | Annotation
+--- | ---
+indexcat | parse .git/index to human readable
+fkgit | fake version of git, implement hash-object/ls-files/add/diff etc
+- [parse index object](#indexcat)
+    - [first glance of objects](#glance)
+    - [contents stored in objects](#contents)
+    - [format of index file](#format)
+    - [tree and commit objects](#tree)
+- [fake git version](#fkgit)
+- [MIT license](#license)
 
+<a id = 'indexcat'></a>
 ## indexcat.py - parse index object
 - git object was referenced by sha1 hashcode
 - every time you use git add, the file content was hashed as a whole
@@ -21,43 +23,49 @@
     - python3 indexcat.py [index_file]
     - python3 indexcat.py .git/index
 
-### secret of ./git/objects
-
-take main.cpp as example, see how the objects/ files was generated
+<a id = 'glance'></a>
+### first glance of ./git/objects
+> take main.cpp as example, see how the objects/ files was generated
 
 ``` bash
-$ cat main.cpp | wc
+cat main.cpp | wc
       5      12      77
-# namely 77 characters total.
-# the blob data structure is just like "blob ${chars_total}\0${Contents}"
-# we suppose this main.cpp will be stored as "blob 77\0${Contents}"
-# in a object file.
+```
+> Namely 77 characters total.<br>
+the blob data structure is just like `"blob ${chars_total}\0${Contents}"`
+we suppose this main.cpp will be stored as `"blob 77\0${Contents}`"
+in a object file.
 
-$ echo -ne "blob 77\0" | cat - main.cpp
+```bash
+echo -ne "blob 77\0" | cat - main.cpp
+```
+```c
 blob 77#include <stdio.h>
 
 int main(int argc, const char *argv[]) {
         return 0;
 }
-
-$ echo -ne "blob 77\0" | cat - main.cpp | shasum -a 1
+```
+```bash
+echo -ne "blob 77\0" | cat - main.cpp | shasum -a 1
 bee80fe26e979b11a5ed10f4802c6aa9fbee3375  -
 
-$ git add main.cpp
-$ find .git/objects/ -type f
-.git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375  <= the same
+git add main.cpp
 
+find .git/objects/ -type f
+.git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375  <= the same
 ```
 
+<a id = 'contents'></a>
 ### contents stored in ./git/objects/
-
-contents stored in the object file was compressed by zlib. In linux we can use
-
-gunzip to simulate compress & decompress.
+> contents stored in the object file was compressed by zlib.<br>
+In linux we can use gunzip to simulate compress & decompress.
 
 ```bash
-$ printf "\x1f\x8b\x08\x00\x00\x00\x00\x00" |
+printf "\x1f\x8b\x08\x00\x00\x00\x00\x00" |
     cat - .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375 | gzip -d 2>/dev/null
+```
+```c
 blob 77#include <stdio.h>
 
 int main(int argc, const char *argv[]) {
@@ -65,12 +73,11 @@ int main(int argc, const char *argv[]) {
 }
 
 <=== the same content
-
 ```
 
+<a id = 'format'></a>
 ### format of ./git/index
-
-```bash
+```
   | 0           | 4            | 8           | C              |
   |-------------|--------------|-------------|----------------|
 0 | DIRC        | Version      | File count  | Ctime          | 0
@@ -90,15 +97,16 @@ int main(int argc, const char *argv[]) {
   | 9-bit unix perm   |        | 12-bit name length      |
 ```
 
-index itself is a binary file, directly cat make no sense
+> index itself is a binary file, directly *`cat`* make no sense
 
 ```bash
-$ cd ./git
-$ cat index
+cd ./git
+cat index
 KY�����m�
          �K����M���n�����,j���3main.cpp�'m~�3 (���/�λ
 
-$ xxd index
+xxd index
+
 0000000: 4449 5243 0000 0002 0000 0001 59ac c102  DIRC........Y...
 0000010: 190d 104b 59ac c0fd 0fbc d36d 0000 fc00  ...KY......m....
 0000020: 0ba2 024b 0000 81a4 0000 03e8 0000 03e8  ...K............
@@ -106,12 +114,14 @@ $ xxd index
 0000040: 802c 6aa9 fbee 3375 0008 7361 6d70 6c65  .,j...3u..sample
 0000050: 2e63 0000 da27 6d06 7e90 3320 ceac 7f28  .c...'m.~.3 ...(
 0000060: 88ac d72f e28b cebb                      .../....
+```
+> Or `vim -b index` and then `:% !xxd`
 
-Or vim -b index and then :% !xxd
-$ git add main.cpp indexcat.py
+```bash
+git add main.cpp indexcat.py
 
 # use self-written script to parse current index file, multiple files supported.
-$ ./indexcat.py .git/index
+./indexcat.py .git/index
 
 -------------------- Index File --------------------
 Head: DIRC
@@ -149,13 +159,17 @@ Length: 8
 File Name: main.cpp
 CheckSum: f3bae40e88e41eee3d78b2ae3c7ab4f2963d8f19
 -------------------- End of Parse --------------------
+```
+> Notice above two SHA-1 fields
 
-Notice above two SHA-1 fields
-$ find .git/objects/ -type f
+```bash
+find .git/objects/ -type f
 .git/objects/6d/d1382a4dcc9ef465515885865f41f89623873c
 .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375
 
-$ git cat-file -p bee80fe26e979b11a5ed10f4802c6aa9fbee3375
+git cat-file -p bee80fe26e979b11a5ed10f4802c6aa9fbee3375
+```
+```c
 #include <stdio.h>
 
 int main(int argc, const char *argv[]) {
@@ -163,15 +177,16 @@ int main(int argc, const char *argv[]) {
 }
 ```
 
+<a id = 'tree'></a>
 ### tree and commit objects
 ```bash
-$ git commit -m "try #1"
+git commit -m "try #1"
 [master (root-commit) 69e6377] try #1
  2 files changed, 242 insertions(+)
  create mode 100755 indexcat.py
  create mode 100644 main.cpp
 
-$ find .git/objects/ -type f
+find .git/objects/ -type f
 .git/objects/6d/d1382a4dcc9ef465515885865f41f89623873c
 .git/objects/69/e6377db0916d2b76efbbfcdf6b919400dbdf10
 .git/objects/89/f329a6a91ccdf6646edd513b1ccbf6616020bf
@@ -181,32 +196,34 @@ $ find .git/objects/ -type f
 .git/objects/69/e6377db0916d2b76efbbfcdf6b919400dbdf10
 .git/objects/89/f329a6a91ccdf6646edd513b1ccbf6616020bf
 
-$ git cat-file -p 89f329a6a91ccdf6646edd513b1ccbf6616020bf
+git cat-file -p 89f329a6a91ccdf6646edd513b1ccbf6616020bf
 100755 blob 6dd1382a4dcc9ef465515885865f41f89623873c    indexcat.py
 100644 blob bee80fe26e979b11a5ed10f4802c6aa9fbee3375    main.cpp
 
-$ git cat-file -t 89f329a6a91ccdf6646edd513b1ccbf6616020bf
+git cat-file -t 89f329a6a91ccdf6646edd513b1ccbf6616020bf
 tree
 
-$ gitt cat-file -p 69e6377db0916d2b76efbbfcdf6b919400dbdf10
+gitt cat-file -p 69e6377db0916d2b76efbbfcdf6b919400dbdf10
 tree 89f329a6a91ccdf6646edd513b1ccbf6616020bf
 author corsair <xiangp126@126.com> 1505217357 -0400
 committer corsair <xiangp126@126.com> 1505217357 -0400
 
 try #1
 
-$ git cat-file -t 69e6377db0916d2b76efbbfcdf6b919400dbdf10
+git cat-file -t 69e6377db0916d2b76efbbfcdf6b919400dbdf10
 commit
 
 # tree object is just like Directory in Linux OS
 ```
 
+<a id = 'fkgit'></a>
 ## Usage of fkgit.py
-
-add fkgit.py to PATH, and chmod +x to make it excutable.
+> add fkgit.py to PATH, and `chmod +x` to make it excutable.
 
 ``` bash
-$ fkgit -h
+fkgit -h
+```
+```
 usage: fkgit [-h]
              {init,add,hash-object,ls-files,cat-file,commit,diff,status} ...
 
@@ -225,11 +242,12 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-
-$ pwd
+```
+```bash
+pwd
 ./fkgit/sample
 
-$ fkgit add .
+fkgit add .
 ./pygit.py
 ./main.cpp
 ./README.md
@@ -239,7 +257,7 @@ $ fkgit add .
 ./deer/data.txt
 ./deer/raw.txt
 
-$ find .git/objects/ -type f
+find .git/objects/ -type f
 .git/objects/d6/8e191653c2d298e0ddfc57daeb3dbd4fa78ef0
 .git/objects/6d/2ca835f03fd3ea8c764552fedae78d42cd364f
 .git/objects/e6/9de29bb2d1d6434b8b29ae775ad8c2e48c5391
@@ -247,11 +265,15 @@ $ find .git/objects/ -type f
 .git/objects/85/66ef07fbfa6160dc7d07cca46aebad11802196
 .git/objects/11/7f5333dfb990da66d3726ab70e9819aa639b5b
 .git/objects/46/b8220f29283650c14bdf262d13c75532b0a78a
-
-$ fkgit hash-object main.cpp
+```
+---
+```bash
+fkgit hash-object main.cpp
 117f5333dfb990da66d3726ab70e9819aa639b5b
 
-$ fkgit cat-file -h
+fkgit cat-file -h
+```
+```
 usage: fkgit cat-file [-h] [-t] [-s] [-p] [-r] sha1
 
 positional arguments:
@@ -263,8 +285,12 @@ optional arguments:
   -s, --size    show object size
   -p, --pretty  pretty-print object's content
   -r, --raw     show raw data of object after decompressed
-
-$ fkgit cat-file -p 117f5333dfb990da66d3726ab70e9819aa639b5b
+```
+---
+```bash
+fkgit cat-file -p 117f5333dfb990da66d3726ab70e9819aa639b5b
+```
+```c
 #include <stdio.h>
 
 int main(int argc, const char *argv[]) {
@@ -274,5 +300,6 @@ int main(int argc, const char *argv[]) {
 
 ```
 
+<a id = 'license'></a>
 ## License
 The [MIT](./LICENSE.txt) License (MIT)
