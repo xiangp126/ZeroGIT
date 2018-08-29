@@ -9,7 +9,7 @@ fkgit | fake version of git, implement hash-object/ls-files/add/diff etc
 ## Contents
 - [parse index object](#indexcat)
     - [first glance of objects](#glance)
-    - [contents stored in objects](#contents)
+    - [contents stored in objects](#contents_store)
     - [format of index file](#format)
     - [tree and commit objects](#tree)
 - [fake git version](#fkgit)
@@ -58,7 +58,7 @@ find .git/objects/ -type f
 .git/objects/be/e80fe26e979b11a5ed10f4802c6aa9fbee3375  <= the same
 ```
 
-<a id = 'contents'></a>
+<a id = 'contents_store'></a>
 ### contents stored in ./git/objects/
 > contents stored in the object file was compressed by zlib.<br>
 In linux we can use gunzip to simulate compress & decompress.
