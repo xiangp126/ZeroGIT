@@ -5,6 +5,8 @@ Tool Name | Annotation
 --- | ---
 indexcat | parse .git/index to human readable
 fkgit | fake version of git, implement hash-object/ls-files/add/diff etc
+
+## Contents
 - [parse index object](#indexcat)
     - [first glance of objects](#glance)
     - [contents stored in objects](#contents)
